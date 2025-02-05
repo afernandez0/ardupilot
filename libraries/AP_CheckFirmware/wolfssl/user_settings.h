@@ -55,10 +55,7 @@
 
 #ifdef HAL_BOOTLOADER_BUILD
 #define NO_ERROR_STRINGS
-// #define NO_RSA
 #define WOLFSSL_SMALL_STACK
-// #else
-// #define SHOW_GEN
 #endif
 
 #define NO_AES_CBC 
@@ -71,21 +68,11 @@
 #define NO_STM32_RNG
 
 
-// #define HASH_AlgoSelection_SHA1     0UL
-// #define HASH_AlgoSelection_MD5      HASH_CR_ALGO_0
-// #define HASH_AlgoSelection_SHA224   HASH_CR_ALGO_1
-// #define HASH_AlgoSelection_SHA256   HASH_CR_ALGO
-
-// // Added by ajfg
-#define HAVE_SHA512
-
-
 /* Realloc (to use without USE_FAST_MATH) */
 
 // #define XREALLOC(p,n,h,t) ((void*)std_realloc( (p) , (n) )); (void)h; (void)t
 // #define XMALLOC(s,h,t) ((void*)malloc(s)); (void)h; (void)t
 // #define XFREE(p,h,t)   free(p)
-// #endif
 
 
 
@@ -98,19 +85,7 @@
 #define WORD64_AVAILABLE
 
 
-// /* ChibiOS + Lwip */
-// #define HAVE_LWIP_NATIVE 
-// #define WOLFSSL_CHIBIOS 
-
-// #define USER_TICKS 
-// #define WOLFSSL_USER_CURRTIME 
-// #define XMALLOC_OVERRIDE 
-// //#define USE_WOLF_TIME_T
-// #define XTIME(tl)       (LowResTimer())
-
-
-// /* ARM  */
-		
+// /* ARM  */	
 #define RSA_LOW_MEM
 // #define NO_OLD_RNGNAME  
 #define SMALL_SESSION_CACHE
@@ -133,8 +108,7 @@
 // #define HAVE_ONE_TIME_AUTH
 // #define WOLFSSL_DH_CONST
 		
-/* HW RNG support */
-
+// HW RNG support 
 unsigned int chibios_rand_generate(void);
 int custom_rand_generate_block(unsigned char* output, unsigned int sz);
 
@@ -143,8 +117,8 @@ int custom_rand_generate_block(unsigned char* output, unsigned int sz);
 
 // #define HAVE_ED25519
 // // #define HAVE_POLY1305
-// #define HAVE_SHA512
-// // #define WOLFSSL_SHA512
+#define HAVE_SHA512
+// #define WOLFSSL_SHA512
 
 
 // /* Size/speed config */
@@ -169,12 +143,5 @@ int custom_rand_generate_block(unsigned char* output, unsigned int sz);
 // // #define NO_PSK
 // // #define NO_DES3
 // // #define NO_RC4
-
-
-// /* Realloc (to use without USE_FAST_MATH) */
-
-// // void *chHeapRealloc (void *addr, uint32_t size);
-// // #define XREALLOC(p,n,h,t) chHeapRealloc( (p) , (n) )
-
 
 #endif

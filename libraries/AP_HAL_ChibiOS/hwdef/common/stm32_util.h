@@ -193,12 +193,6 @@ extern stkalign_t __main_thread_stack_end__;
 
 void stm32_disable_cm4_core(void);
 
-
-// ajfg
-// #if AP_SIGNED_FIRMWARE && defined(HAL_BOOTLOADER_BUILD)
-// uint32_t wolfssl_rand_get(void);
-// #endif
-
 #ifdef __cplusplus
 }
 #endif

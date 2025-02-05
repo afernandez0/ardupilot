@@ -1234,6 +1234,18 @@ class chibios(Board):
             cfg.msg("Enabling -Werror", "no")
 
         if cfg.options.signed_fw:
+            # ajfg
+            # Extracted from https://github.com/ArduPilot/ardupilot/pull/21456/files#diff-7d695263dc1bd6a88d12cd548aa30f977f387796b6b97d3c739cde0487071002
+            # Where WolfSSL was removed in favor of monocypher
+            if cfg.options.bootloader:    
+                # from Crypto.PublicKey import ECC
+                cfg.define('WOLFSSL_USER_SETTINGS', 1)
+                cfg.define('SKIP_WOLFSSL_BINDINGS', 1)
+                env.INCLUDES += [ cfg.srcnode.find_dir('modules/wolfssl').abspath() ]
+                env.GIT_SUBMODULES += ['wolfssl']
+                env.BUILD_WOLFSSL = True
+                cfg.load('wolfssl')
+
             cfg.define('AP_SIGNED_FIRMWARE', 1)
             env.CFLAGS += [
                 '-DAP_SIGNED_FIRMWARE=1',
@@ -1243,39 +1255,6 @@ class chibios(Board):
             env.CFLAGS += [
                 '-DAP_SIGNED_FIRMWARE=0',
             ]
-
-        # At the moment we do not care
-        # if cfg.options.signed_fw:
-        # Extracted from https://github.com/ArduPilot/ardupilot/pull/21456/files#diff-7d695263dc1bd6a88d12cd548aa30f977f387796b6b97d3c739cde0487071002
-        # Where WolfSSL was removed in favor of monocypher
-        # if cfg.options.bootloader:    
-        # from Crypto.PublicKey import ECC
-
-        cfg.define('WOLFSSL_USER_SETTINGS', 1)
-        cfg.define('SKIP_WOLFSSL_BINDINGS', 1)
-        env.INCLUDES += [ cfg.srcnode.find_dir('modules/wolfssl').abspath() ]
-        env.GIT_SUBMODULES += ['wolfssl']
-        env.BUILD_WOLFSSL = True
-        cfg.load('wolfssl')
-
-        # cfg.define('AP_SIGNED_FIRMWARE', 1)
-        # env.CFLAGS += [
-        #     '-DAP_SIGNED_FIRMWARE=1',
-        # ]
-        # ajfg
-        # else:
-        #     cfg.define('AP_SIGNED_FIRMWARE', 0)
-        #     env.CFLAGS += [
-        #         '-DAP_SIGNED_FIRMWARE=0',
-        #     ]
-
-
-
-
-
-
-
-
 
         try:
             import intelhex
