@@ -3625,6 +3625,16 @@ class TestSuite(ABC):
             if bytes1[i] != bytes2[i]:
                 raise NotAchievedException("differ at offset %u" % i)
 
+    def assert_home_position_not_set(self):
+        try:
+            self.poll_home_position()
+        except NotAchievedException:
+            return
+
+        # if home.lng != 0: etc
+
+        raise NotAchievedException("Home is set when it shouldn't be")
+
     def HIGH_LATENCY2(self):
         '''test sending of HIGH_LATENCY2'''
 
@@ -6271,6 +6281,35 @@ class TestSuite(ABC):
             return
         raise ValueError("Failed to set parameters (%s)" % want)
 
+    def check_parameter_value(self, name, expected_value, max_error_percent):
+        value = self.get_parameter_direct(name, verbose=False)
+
+        # Convert to ratio and find limits
+        error_ratio = max_error_percent / 100
+        limits = [expected_value * (1 + error_ratio), expected_value * (1 - error_ratio)]
+
+        # Ensure that min and max are always the corret way round
+        upper_limit = max(limits)
+        lower_limit = min(limits)
+
+        # Work out the true error percentage
+        error_percent = math.nan
+        if expected_value != 0:
+            error_percent = abs(1.0 - (value / expected_value)) * 100
+
+        # Check value is within limits
+        if (value > upper_limit) or (value < lower_limit):
+            raise ValueError("%s expected %f ± %f%% (%f to %f) got %s with %f%% error" % (
+                name,
+                expected_value,
+                max_error_percent,
+                lower_limit,
+                upper_limit,
+                value,
+                error_percent))
+
+        self.progress("%s: (%f) check passed %f%% error less than %f%%" % (name, value, error_percent, max_error_percent))
+
     def get_parameter(self, *args, **kwargs):
         return self.get_parameter_direct(*args, **kwargs)
 
@@ -8331,8 +8370,8 @@ class TestSuite(ABC):
             now = self.get_sim_time_cached()
             if now - tstart > timeout:
                 raise NotAchievedException(
-                    "Did not see failure-to-arm messages (statustext=%s command_ack=%s" %
-                    (seen_statustext, seen_command_ack))
+                    f"Did not see failure-to-arm messages ({seen_statustext=} {expected_statustext=} {seen_command_ack=})"
+                )
             if now - arm_last_send > 1:
                 arm_last_send = now
                 self.send_mavlink_run_prearms_command()

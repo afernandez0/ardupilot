@@ -119,14 +119,14 @@ public:
 #ifdef AP_PERIPH_HAVE_LED_WITHOUT_NOTIFY
     AP_Int8 led_brightness;
 #endif
-#ifdef HAL_PERIPH_ENABLE_BARO
+#if AP_PERIPH_BARO_ENABLED
     AP_Int8 baro_enable;
 #endif
 #if !defined(HAL_NO_FLASH_SUPPORT) && !defined(HAL_NO_ROMFS_SUPPORT)
     AP_Int8 flash_bootloader;
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_RANGEFINDER
+#if AP_PERIPH_RANGEFINDER_ENABLED
     AP_Int32 rangefinder_baud[RANGEFINDER_MAX_INSTANCES];
     AP_Int8 rangefinder_port[RANGEFINDER_MAX_INSTANCES];
     AP_Int16 rangefinder_max_rate;

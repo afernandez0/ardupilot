@@ -178,7 +178,7 @@ public:
     void can_imu_update();
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_RANGEFINDER
+#if AP_PERIPH_RANGEFINDER_ENABLED
     void can_rangefinder_update();
 #endif
     void can_battery_update();
@@ -227,11 +227,11 @@ public:
     AP_NMEA_Output nmea;
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_MAG
+#if AP_PERIPH_MAG_ENABLED
     Compass compass;
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_BARO
+#if AP_PERIPH_BARO_ENABLED
     AP_Baro baro;
 #endif
 
@@ -298,7 +298,7 @@ public:
     AP_Airspeed airspeed;
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_RANGEFINDER
+#if AP_PERIPH_RANGEFINDER_ENABLED
     RangeFinder rangefinder;
     uint32_t last_rangefinder_update_ms;
     uint32_t last_rangefinder_sample_ms[RANGEFINDER_MAX_INSTANCES];
@@ -449,7 +449,7 @@ public:
 #ifdef HAL_PERIPH_ENABLE_EFI
     uint32_t last_efi_update_ms;
 #endif
-#ifdef HAL_PERIPH_ENABLE_MAG
+#if AP_PERIPH_MAG_ENABLED
     uint32_t last_mag_update_ms;
 #endif
 #if AP_PERIPH_GPS_ENABLED
@@ -457,7 +457,7 @@ public:
     uint32_t last_gps_yaw_ms;
 #endif
     uint32_t last_relposheading_ms;
-#ifdef HAL_PERIPH_ENABLE_BARO
+#if AP_PERIPH_BARO_ENABLED
     uint32_t last_baro_update_ms;
 #endif
 #ifdef HAL_PERIPH_ENABLE_AIRSPEED

@@ -12243,18 +12243,8 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
         self.context_pop()
         self.reboot_sitl()
 
-    def assert_home_position_not_set(self):
-        try:
-            self.poll_home_position()
-        except NotAchievedException:
-            return
-
-        # if home.lng != 0: etc
-
-        raise NotAchievedException("Home is set when it shouldn't be")
-
-    def REQUIRE_POSITION_FOR_ARMING(self):
-        '''check FlightOption::REQUIRE_POSITION_FOR_ARMING works'''
+    def REQUIRE_LOCATION_FOR_ARMING(self):
+        '''check AP_Arming::Option::REQUIRE_LOCATION_FOR_ARMING works'''
         self.context_push()
         self.set_parameters({
             "SIM_GPS1_NUMSATS": 3,  # EKF does not like < 6
@@ -12270,7 +12260,7 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
 
         self.change_mode('STABILIZE')
         self.set_parameters({
-            "FLIGHT_OPTIONS": 8,
+            "ARMING_NEED_LOC": 1,
         })
         self.assert_prearm_failure("Need Position Estimate", other_prearm_failures_fatal=False)
         self.context_pop()
@@ -12685,7 +12675,7 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             self.GuidedWeatherVane,
             self.Clamp,
             self.GripperReleaseOnThrustLoss,
-            self.REQUIRE_POSITION_FOR_ARMING,
+            self.REQUIRE_LOCATION_FOR_ARMING,
             self.LoggingFormat,
             self.MissionRTLYawBehaviour,
             self.BatteryInternalUseOnly,

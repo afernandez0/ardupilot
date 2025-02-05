@@ -263,13 +263,13 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     GSCALAR(battery_hide_mask, "BATT_HIDE_MASK", HAL_PERIPH_BATT_HIDE_MASK_DEFAULT),
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_MAG
+#if AP_PERIPH_MAG_ENABLED
     // @Group: COMPASS_
     // @Path: ../libraries/AP_Compass/AP_Compass.cpp
     GOBJECT(compass,         "COMPASS_",     Compass),
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_BARO
+#if AP_PERIPH_BARO_ENABLED
     // Baro driver
     // @Group: BARO
     // @Path: ../libraries/AP_Baro/AP_Baro.cpp
@@ -301,7 +301,7 @@ const AP_Param::Info AP_Periph_FW::var_info[] = {
     GOBJECT(airspeed, "ARSPD", AP_Airspeed),
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_RANGEFINDER
+#if AP_PERIPH_RANGEFINDER_ENABLED
     // @Param: RNGFND_BAUDRATE
     // @DisplayName: Rangefinder serial baudrate
     // @Description: Rangefinder serial baudrate.
