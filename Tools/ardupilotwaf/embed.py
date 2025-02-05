@@ -9,6 +9,23 @@ May 2017
 
 import os, sys, tempfile, gzip
 
+def calculate_checksum_file(in_filename, in_extension, in_buffer):
+    print("**** Calculating checksum of params file: ", in_filename)
+
+    import hashlib
+    h = hashlib.new('sha256')
+
+    h.update(in_buffer)
+    # print("    new buffer: [",new_buffer,"]",len(new_buffer))
+    # print("    SHA256: ", h.hexdigest() )
+
+    # Save to a file
+    checksum_filename = in_filename + ".chksum"
+    # Reconstruct the original filename
+    only_filename = os.path.basename(in_filename) + in_extension
+    with open(checksum_filename, "w") as nf:
+        nf.write(f"{h.hexdigest()}")
+
 def write_encode(out, s):
     out.write(s.encode())
 
@@ -19,6 +36,14 @@ def embed_file(out, f, idx, embedded_name, uncompressed):
     except Exception:
         raise Exception("Failed to embed %s" % f)
 
+    # ajfg
+    pre, ext = os.path.splitext(f)
+
+    # Only calculate the checksum of parameter files 
+    if ext == ".parm" or ext == ".param":
+        calculate_checksum_file(pre, ext, contents)
+    # end ajfg
+    
     pad = 0
     if embedded_name.endswith("bootloader.bin"):
         # round size to a multiple of 32 bytes for bootloader, this ensures
