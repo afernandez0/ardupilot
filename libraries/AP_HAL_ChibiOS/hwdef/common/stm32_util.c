@@ -609,3 +609,13 @@ void stm32_disable_cm4_core() {
     }
 }
 #endif // DUAL_CORE
+
+// ajfg
+// #if AP_SIGNED_FIRMWARE && defined(HAL_BOOTLOADER_BUILD)
+// uint32_t wolfssl_rand_get(void)
+// {
+//     uint32_t val;
+//     while (!stm32_rand_generate(&val)) {}
+//     return val;
+// }
+// #endif
