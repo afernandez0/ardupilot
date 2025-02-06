@@ -62,6 +62,8 @@ if len(sys.argv) != 3:
 # 2048 bits (256 bytes)
 key_len = 256
 sig_len = 256
+
+# NOTE: Should these two values updated for RSA 2048?
 sig_version = 30437
 # Signed descriptor 
 descriptor = b'\x41\xa3\xe5\xf2\x65\x69\x92\x07'
@@ -92,14 +94,19 @@ if offset == -1:
     sys.exit(1)
 
 offset += 8
-desc_len = 92
+# ajfg
+# NOTE: Previous 92 = 16 + 76 (siglen, sigver, sig)
+#       Now     284 = 16 + 268 (siglen, sigver, sig)
+desc_len = 284
 
 digest = SHA256.new(img[:offset] + img[offset+desc_len:])
 signer = pkcs1_15.new(private_key)
 signature = signer.sign(digest)
 
 siglen = to_unsigned(len(signature))
-signature += bytes(bytearray([0 for i in range(72 - len(signature))]))
+# Note: Previous 72 = 8 + 64 (sigver, sig)
+#       Now     264 = 8 + 256
+signature += bytes(bytearray([0 for i in range(264 - len(signature))]))
 
 if siglen != sig_len:
     print("Bad signature length %u should be %u" % (siglen, sig_len))
@@ -107,8 +114,8 @@ if siglen != sig_len:
 
 # Store the signature
 #pack signature in 4 bytes and length into 72 byte array
-# Note: length (4 bytes), signature (64 bytes) padded with zeros up to 72 bytes
-desc = struct.pack("<I72s", siglen, signature)
+# Note: length (4 bytes), signature (256 bytes) padded with zeros up to 264 bytes
+desc = struct.pack("<IQ256s", sig_len+8, sig_version, signature)
 
 # 16 bytes = descriptor, crc1, crc2, img_size, git_hash
 img = img[:(offset + 16)] + desc + img[(offset + desc_len):]

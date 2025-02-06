@@ -47,7 +47,9 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
 
     // 8 byte signature version
     static const uint64_t sig_version = 30437LLU;
-    if (ad->signature_length != 72) {
+    // ajfg. Previous  72 = 8 + 64 (sigver, sig)
+    //       Now      264 = 8 + 256 (sigver, sig)
+    if (ad->signature_length != 264) {
         return check_fw_result_t::FAIL_REASON_BAD_FIRMWARE_SIGNATURE;
     }
     if (memcmp((const uint8_t*)&sig_version, ad->signature, sizeof(sig_version)) != 0) {

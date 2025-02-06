@@ -44,6 +44,9 @@ private_key = key.export_key()
 
 public_key = key.publickey().export_key()
 
+print("Private key length: ", key.size_in_bytes())
+print("Public  key length: ", key.publickey().size_in_bytes())
+
 public_fname = "%s_public_key.dat" % bname
 private_fname = "%s_private_key.dat" % bname
 

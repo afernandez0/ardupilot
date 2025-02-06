@@ -200,8 +200,8 @@ bool AP_CheckFirmware::check_signature(const mavlink_secure_command_t &pkt)
         // allow through if no keys are setup
         return true;
     }
-    if (pkt.sig_length != 64) {
-        // monocypher signatures are 64 bytes
+    if (pkt.sig_length != 256) {
+        // RSA signatures are 256 bytes
         return false;
     }
     /*

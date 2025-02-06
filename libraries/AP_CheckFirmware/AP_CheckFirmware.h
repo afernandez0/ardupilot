@@ -87,7 +87,9 @@ struct app_descriptor_signed {
 
     // firmware signature
     uint32_t signature_length = 0;
-    uint8_t signature[72] = {};
+    // ajfg. Previous  72 = 8 + 64 (sigver, sig)
+    //       Now      264 = 8 + 256 (sigver, sig)
+    uint8_t signature[264] = {};
 
     // software version number
     uint8_t  version_major = APP_FW_MAJOR;
@@ -105,14 +107,16 @@ typedef struct app_descriptor_unsigned app_descriptor_t;
 #endif
 
 #define APP_DESCRIPTOR_UNSIGNED_TOTAL_LENGTH 36
-#define APP_DESCRIPTOR_SIGNED_TOTAL_LENGTH (APP_DESCRIPTOR_UNSIGNED_TOTAL_LENGTH+72+4)
+#define APP_DESCRIPTOR_SIGNED_TOTAL_LENGTH (APP_DESCRIPTOR_UNSIGNED_TOTAL_LENGTH+264+4)
 
 static_assert(sizeof(app_descriptor_unsigned) == APP_DESCRIPTOR_UNSIGNED_TOTAL_LENGTH, "app_descriptor_unsigned incorrect length");
 static_assert(sizeof(app_descriptor_signed) == APP_DESCRIPTOR_SIGNED_TOTAL_LENGTH, "app_descriptor_signed incorrect length");
 
 #if AP_SIGNED_FIRMWARE
 
-#define AP_PUBLIC_KEY_LEN 32
+// ajfg. Previous  32
+//       Now      256
+#define AP_PUBLIC_KEY_LEN 256
 #define AP_PUBLIC_KEY_MAX_KEYS 10
 #define AP_PUBLIC_KEY_SIGNATURE {0x4e, 0xcf, 0x4e, 0xa5, 0xa6, 0xb6, 0xf7, 0x29}
 

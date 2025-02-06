@@ -273,7 +273,7 @@ def sign_firmware(image, private_keyfile):
 
     sig_len = len(sig)
     sig_version = 30437
-    output_signature = struct.pack("<IQ64s", sig_len+8, sig_version, sig)
+    output_signature = struct.pack("<IQ256s", sig_len+8, sig_version, sig)
 
     Logs.info("** Checksum (sha256): [", digest.decode("utf-8"), "]")
     Logs.info("** Signature:         [", output_signature.decode("utf-8"), "]")
@@ -289,6 +289,8 @@ class set_app_descriptor(Task.Task):
         return "app_descriptor"
     def run(self):
         if self.generator.bld.env.AP_SIGNED_FIRMWARE:
+            # ajfg
+            # TODO: should this descriptor be updated for RSA 2048 ??
             descriptor = b'\x41\xa3\xe5\xf2\x65\x69\x92\x07'
         else:
             descriptor = b'\x40\xa2\xe4\xf1\x64\x68\x91\x06'
@@ -308,7 +310,10 @@ class set_app_descriptor(Task.Task):
         sys.path.append(upload_tools)
         from uploader import crc32
         if self.generator.bld.env.AP_SIGNED_FIRMWARE:
-            desc_len = 92
+            # ajfg. Add new signature
+            # NOTE: Previous 92 = 16 + 76 (siglen, sigver, sig)
+            #       Now     284 = 16 + 268 (siglen, sigver, sig)
+            desc_len = 16 + 268
         else:
             desc_len = 16
         img1 = bytearray(img[:offset])
@@ -317,7 +322,8 @@ class set_app_descriptor(Task.Task):
         crc2 = to_unsigned(crc32(img2))
         githash = to_unsigned(int('0x' + os.environ.get('GIT_VERSION', self.generator.bld.git_head_hash(short=True)),16))
         if self.generator.bld.env.AP_SIGNED_FIRMWARE:
-            sig = bytearray([0 for i in range(76)])
+            # ajfg. Note: Previous 76
+            sig = bytearray([0 for i in range(268)])
             if self.generator.bld.env.PRIVATE_KEY:
                 sig_signed = sign_firmware(img1+img2, self.generator.bld.env.PRIVATE_KEY)
                 if sig_signed:
@@ -325,9 +331,11 @@ class set_app_descriptor(Task.Task):
                     sig = sig_signed
                 else:
                     self.generator.bld.fatal("Signing failed")
-            desc = struct.pack('<IIII76s', crc1, crc2, len(img), githash, sig)
+            desc = struct.pack('<IIII268s', crc1, crc2, len(img), githash, sig)
+
         else:
             desc = struct.pack('<IIII', crc1, crc2, len(img), githash)
+
         img = img[:offset] + desc + img[offset+desc_len:]
         Logs.info("Applying APP_DESCRIPTOR %08x%08x" % (crc1, crc2))
         open(self.inputs[0].abspath(), 'wb').write(img)
