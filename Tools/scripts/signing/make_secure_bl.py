@@ -56,7 +56,7 @@ parser.add_argument("keys", nargs='*', type=str, default=[], help="keys")
 args = parser.parse_args()
     
 descriptor = b'\x4e\xcf\x4e\xa5\xa6\xb6\xf7\x29'
-max_keys = 10
+max_keys = 5
 # 2048 bits (256 bytes)
 key_len = 256
 

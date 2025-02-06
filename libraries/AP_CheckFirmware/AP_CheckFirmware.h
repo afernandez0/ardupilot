@@ -117,7 +117,7 @@ static_assert(sizeof(app_descriptor_signed) == APP_DESCRIPTOR_SIGNED_TOTAL_LENGT
 // ajfg. Previous  32
 //       Now      256
 #define AP_PUBLIC_KEY_LEN 256
-#define AP_PUBLIC_KEY_MAX_KEYS 10
+#define AP_PUBLIC_KEY_MAX_KEYS 5
 #define AP_PUBLIC_KEY_SIGNATURE {0x4e, 0xcf, 0x4e, 0xa5, 0xa6, 0xb6, 0xf7, 0x29}
 
 struct PACKED ap_secure_data {
