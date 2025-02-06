@@ -235,13 +235,21 @@ def to_unsigned(i):
 def sign_firmware(image, private_keyfile):
     '''sign firmware with private key'''
     try:
-        import monocypher
+        import Crypto
+
+        # from Crypto.Signature import DSS
+        from Crypto.Hash import SHA256
+        from Crypto.PublicKey import RSA
+        from Crypto.Cipher import PKCS1_OAEP
+        from Crypto.Signature import pkcs1_15 # Digital signing alg
+
     except ImportError:
-        Logs.error("Please install monocypher with: python3 -m pip install pymonocypher==3.1.3.2")
+        print("Please install Python Cryptodome with '$ python3 -m pip install pycryptodome==3.21'")
         return None
 
-    if monocypher.__version__ != "3.1.3.2":
-        Logs.error("must use monocypher 3.1.3.2, please run: python3 -m pip install pymonocypher==3.1.3.2")
+    if Crypto.__version__ != "3.21.0":
+        Logs.error("Please, install Cryptodome version 3.21.0")
+        Logs.error("  Run: '$ python3 -m pip install pycryptodome==3.21'")
         return None
 
     try:
@@ -249,15 +257,28 @@ def sign_firmware(image, private_keyfile):
     except Exception as ex:
         Logs.error("Failed to open %s" % private_keyfile)
         return None
+    
     keytype = "PRIVATE_KEYV1:"
     if not key.startswith(keytype):
         Logs.error("Bad private key file %s" % private_keyfile)
         return None
+    
     key = base64.b64decode(key[len(keytype):])
-    sig = monocypher.signature_sign(key, image)
+    
+    private_key = RSA.import_key(key)
+
+    digest = SHA256.new(image)
+    signer = pkcs1_15.new(private_key)
+    sig = signer.sign(digest)
+
     sig_len = len(sig)
     sig_version = 30437
-    return struct.pack("<IQ64s", sig_len+8, sig_version, sig)
+    output_signature = struct.pack("<IQ64s", sig_len+8, sig_version, sig)
+
+    Logs.info("** Checksum (sha256): [", digest.decode("utf-8"), "]")
+    Logs.info("** Signature:         [", output_signature.decode("utf-8"), "]")
+
+    return output_signature
 
 
 class set_app_descriptor(Task.Task):

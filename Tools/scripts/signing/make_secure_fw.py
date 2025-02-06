@@ -107,7 +107,10 @@ if siglen != sig_len:
 
 # Store the signature
 #pack signature in 4 bytes and length into 72 byte array
+# Note: length (4 bytes), signature (64 bytes) padded with zeros up to 72 bytes
 desc = struct.pack("<I72s", siglen, signature)
+
+# 16 bytes = descriptor, crc1, crc2, img_size, git_hash
 img = img[:(offset + 16)] + desc + img[(offset + desc_len):]
 if len(img) != img_len:
     Logs.error("Error: Image length changed: " % (len(img), img_len))
