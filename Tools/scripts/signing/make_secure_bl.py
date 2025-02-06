@@ -40,9 +40,11 @@ from argparse import ArgumentParser
 
 def decode_key(ktype, key):
     ktype += "_KEYV1:"
+
     if not key.startswith(ktype):
-        print("Invalid key type")
+        Logs.error("Invalid key type")
         sys.exit(1)
+
     return base64.b64decode(key[len(ktype):])
 
 
@@ -55,7 +57,8 @@ args = parser.parse_args()
     
 descriptor = b'\x4e\xcf\x4e\xa5\xa6\xb6\xf7\x29'
 max_keys = 10
-key_len = 32
+# 2048 bits (256 bytes)
+key_len = 256
 
 img = open(args.bootloader, 'rb').read()
 
@@ -92,16 +95,19 @@ if len(keys) <= 0:
     sys.exit(1)
 
 for kfile in keys:
-    read_key = decode_key("PUBLIC", open(kfile, "r").read())
-    key = RSA.import_key(read_key)
-
-    if len(key) != key_len:
-        Logs.error("Bad key length %u in %s" % (len(key), kfile))
-        sys.exit(1)
-
     Logs.info("Applying Public Key %s" % (kfile))
 
-    desc += key
+    read_key = decode_key("PUBLIC", open(kfile, "r").read())
+    key = RSA.import_key(read_key)
+    exported_key = key.export_key(format='DER')
+    # print(exported_key)
+
+    if key.size_in_bytes() != key_len:
+        Logs.error("Bad key length %u in %s" % (key.size_in_bytes(), kfile))
+        sys.exit(1)
+
+    desc += exported_key
+    # print("desc: ",desc)
     desc_len += key_len
 
 # Write the updated file

@@ -18,9 +18,11 @@ Logs.init_log()
 try:
     import Crypto
 
-    from Crypto.Signature import DSS
+    # from Crypto.Signature import DSS
     from Crypto.Hash import SHA256
     from Crypto.PublicKey import RSA
+    from Crypto.Cipher import PKCS1_OAEP
+    from Crypto.Signature import pkcs1_15 # Digital signing alg
 
 except ImportError:
     print("Please install Python Cryptodome with '$ pip3 install pycryptodome==3.21'")
@@ -57,11 +59,9 @@ if len(sys.argv) != 3:
     sys.exit(1)
 
 
-# key_len = 32   (256 bits)
-# 2048 bits 
+# 2048 bits (256 bytes)
 key_len = 256
-
-sig_len = 64
+sig_len = 256
 sig_version = 30437
 # Signed descriptor 
 descriptor = b'\x41\xa3\xe5\xf2\x65\x69\x92\x07'
@@ -95,7 +95,7 @@ offset += 8
 desc_len = 92
 
 digest = SHA256.new(img[:offset] + img[offset+desc_len:])
-signer = DSS.new(private_key, 'fips-186-3', encoding='der')
+signer = pkcs1_15.new(private_key)
 signature = signer.sign(digest)
 
 siglen = to_unsigned(len(signature))

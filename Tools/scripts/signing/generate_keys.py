@@ -50,7 +50,7 @@ private_fname = "%s_private_key.dat" % bname
 # Save keys to files
 with open(private_fname, "w") as f:
     f.write(encode_key("PRIVATE", private_key))
-print("Generated %s" % private_fname)
+Logs.info("Generated %s" % private_fname)
 
 with open(public_fname, "w") as f:
     f.write(encode_key("PUBLIC", public_key))
