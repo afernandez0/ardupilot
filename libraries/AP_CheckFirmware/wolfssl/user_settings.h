@@ -96,7 +96,7 @@
 // #define NO_SIG_WRAPPER
 		
 // /* Cipher features */
-// //#define USE_FAST_MATH
+// #define USE_FAST_MATH
 // //#define ALT_ECC_SIZE
 
 // // #define HAVE_FFDHE_2048
@@ -117,7 +117,7 @@ int custom_rand_generate_block(unsigned char* output, unsigned int sz);
 
 // #define HAVE_ED25519
 // // #define HAVE_POLY1305
-#define HAVE_SHA512
+// #define HAVE_SHA512
 // #define WOLFSSL_SHA512
 
 

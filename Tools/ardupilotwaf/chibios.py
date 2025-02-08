@@ -337,7 +337,7 @@ class set_app_descriptor(Task.Task):
             desc = struct.pack('<IIII', crc1, crc2, len(img), githash)
 
         img = img[:offset] + desc + img[offset+desc_len:]
-        Logs.info("Applying APP_DESCRIPTOR %08x%08x" % (crc1, crc2))
+        Logs.info("Applying APP_DESCRIPTOR CRC: %08x%08x" % (crc1, crc2))
         open(self.inputs[0].abspath(), 'wb').write(img)
 
 class generate_apj(Task.Task):
