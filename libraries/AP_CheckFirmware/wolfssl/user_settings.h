@@ -40,22 +40,30 @@
 #include "hwdef.h"
 // #include "stdio.h"
 
+#define WOLF_CONF_WOLFCRYPT_ONLY      0
+#define WOLFCRYPT_ONLY
+
 // /* HW RNG support */
 // ///@brief make sure we use our strerror_r function
-#define HAVE_PK_CALLBACKS
-#define WOLFSSL_USER_IO
 #define NO_WRITEV
 // #define XMALLOC_OVERRIDE
 #define NO_CRYPT_BENCHMARK
 #define NO_CRYPT_TEST
-#define WOLFCRYPT_ONLY
 #define NO_HMAC
 #define NO_MD5
 #define NO_OLD_TLS
 
+#define NO_CHACHA
+#define NO_POLY1305 
+#define NO_ECC
+
+
 #ifdef HAL_BOOTLOADER_BUILD
 #define NO_ERROR_STRINGS
+// #define NO_RSA
 #define WOLFSSL_SMALL_STACK
+#else
+#define SHOW_GEN
 #endif
 
 #define NO_AES_CBC 
@@ -66,6 +74,43 @@
 
 #define NO_STM32_CRYPTO
 #define NO_STM32_RNG
+#define NO_STM32_HASH
+
+// CubeOrange
+// env added APJ_BOARD_TYPE=STM32H743xx
+// #define WOLFSSL_STM32H7
+//#define HAL_CONSOLE_UART huart3
+
+#define SIZEOF_LONG_LONG 8
+#define WOLFSSL_GENERAL_ALIGNMENT 4
+// #define WOLFSSL_STM32_CUBEMX
+// #define WOLFSSL_SMALL_STACK
+#define WOLFSSL_NO_SOCK
+#define WOLFSSL_IGNORE_FILE_WARN
+#define HAVE_PK_CALLBACKS
+#define WOLFSSL_USER_IO
+
+/* single precision only */
+#define WOLFSSL_SP
+#define WOLFSSL_SP_SMALL      /* use smaller version of code */
+#define WOLFSSL_HAVE_SP_RSA
+#define WOLFSSL_HAVE_SP_DH
+#define WOLFSSL_HAVE_SP_ECC
+#define WOLFSSL_SP_MATH
+#define SP_WORD_SIZE 32
+
+//#define WOLFSSL_SP_NO_MALLOC
+//#define WOLFSSL_SP_CACHE_RESISTANT
+
+/* single precision Cortex-M only */
+#define WOLFSSL_SP_ASM /* required if using the ASM versions */
+#define WOLFSSL_SP_ARM_CORTEX_M_ASM
+
+
+// Fix error with uint64_t does not define a type
+#define ULONG_MAX 18446744073709551615ULL
+// 0xffffffffUL
+#define ULLONG_MAX 18446744073709551615ULL
 
 
 /* Realloc (to use without USE_FAST_MATH) */
@@ -80,24 +125,30 @@
 
 // /* Configuration */
 
-#define WOLFSSL_GENERAL_ALIGNMENT 4
 #define HAVE_TM_TYPE
-#define WORD64_AVAILABLE
+// #define WORD64_AVAILABLE
 
 
 // /* ARM  */	
-#define RSA_LOW_MEM
+// `RSA_LOW_MEM`: Half as much memory but twice as slow. Uses Non-CRT method for private key.
+// #define RSA_LOW_MEM
 // #define NO_OLD_RNGNAME  
-#define SMALL_SESSION_CACHE
-#define WOLFSSL_SMALL_STACK
+// #define SMALL_SESSION_CACHE
+// #define WOLFSSL_SMALL_STACK
 
 // #define TFM_ARM
 // // #define SINGLE_THREADED
 // #define NO_SIG_WRAPPER
 		
 // /* Cipher features */
-// #define USE_FAST_MATH
-// //#define ALT_ECC_SIZE
+/* 
+USE_FAST_MATH: Uses stack based math, which is faster than the heap based math.
+ALT_ECC_SIZE: If using fast math and RSA/DH you can define this to reduce your ECC memory consumption.
+FP_MAX_BITS: Is the maximum math size (key size * 2). Used only with `USE_FAST_MATH`.
+*/
+#define USE_FAST_MATH
+#define ALT_ECC_SIZE
+#define FP_MAX_BITS     4096
 
 // // #define HAVE_FFDHE_2048
 // // #define HAVE_CHACHA 
