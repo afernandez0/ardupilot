@@ -149,15 +149,15 @@ def _add_signatures_romfs(bld):
                 # Insert Firmware checksum 
                 first_file_index = last_fileindex + 1
                 tmp_filename = os.path.join( bld.bldnode.abspath(), bld.env.AP_FIRMWARE_CHECKSUM_FILE)
-                (calculated_crc1, decompressed_size1) = embed.embed_file(romfs, tmp_filename, first_file_index, 
-                                                                    "firmware_checksum", 
-                                                                    bld.env.ROMFS_UNCOMPRESSED)
+                calculated_crc1 = embed.embed_file(romfs, tmp_filename, first_file_index, 
+                                                    "firmware_checksum", 
+                                                    bld.env.ROMFS_UNCOMPRESSED)
 
                 second_file_index = last_fileindex + 2
                 tmp_filename = os.path.join( bld.bldnode.abspath(), bld.env.AP_PARAMETERS_CHECKSUM_FILE)
-                (calculated_crc2, decompressed_size2) = embed.embed_file(romfs, tmp_filename, second_file_index, 
-                                                                    "params_checksum", 
-                                                                    bld.env.ROMFS_UNCOMPRESSED)
+                calculated_crc2 = embed.embed_file(romfs, tmp_filename, second_file_index, 
+                                                    "params_checksum", 
+                                                    bld.env.ROMFS_UNCOMPRESSED)
 
                 embed.write_encode(romfs, "\n")
 
@@ -167,12 +167,12 @@ def _add_signatures_romfs(bld):
                     else:
                         break
 
-                first_file_line = '{ "%s", sizeof(ap_romfs_%u), %d, 0x%08x, ap_romfs_%u },\n' % (
-                                    "firmware.chksum", first_file_index, decompressed_size1, calculated_crc1, first_file_index)
+                first_file_line = '{ "%s", sizeof(ap_romfs_%u),  0x%08x, ap_romfs_%u },\n' % (
+                                    "firmware.chksum", first_file_index, calculated_crc1, first_file_index)
                 embed.write_encode(romfs, first_file_line)
                     
-                second_file_line = '{ "%s", sizeof(ap_romfs_%u), %d, 0x%08x, ap_romfs_%u },\n' % (
-                                        "params.chksum", second_file_index, decompressed_size2, calculated_crc2, second_file_index)
+                second_file_line = '{ "%s", sizeof(ap_romfs_%u),  0x%08x, ap_romfs_%u },\n' % (
+                                        "params.chksum", second_file_index, calculated_crc2, second_file_index)
                 embed.write_encode(romfs, second_file_line)
 
                 embed.write_encode(romfs, "};\n")
