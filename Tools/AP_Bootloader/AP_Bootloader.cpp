@@ -164,7 +164,7 @@ int main(void)
 #elif AP_CHECK_FIRMWARE_ENABLED
 // ajfg
 #if AP_ADD_CHECKSUMS_ENABLED 
-    ok_cksum = verify_checksums();
+    const auto ok_cksum = verify_checksums();
     if (ok_cksum != check_fw_result_t::CHECK_FW_OK) {
         // bad firmware, don't try and boot
         timeout = 0;

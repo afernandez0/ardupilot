@@ -128,14 +128,40 @@ struct PACKED ap_secure_data {
 
 #ifdef HAL_BOOTLOADER_BUILD
 check_fw_result_t check_good_firmware(void);
-#else
-void check_firmware_print(void);
 
 // ajfg
 #if AP_ADD_CHECKSUMS_ENABLED 
 #define AP_CHECKSUM_LEN_CHARS  64
 check_fw_result_t verify_checksums(void);
+
+
+
+    // /*
+    //   in memory structure representing the current bootloader. It has two
+    //   data regions to cope with persistent data at the end of the
+    //   bootloader sector
+    // */
+    // struct bl_data {
+    //     uint32_t length1;
+    //     uint8_t *data1;
+    //     uint32_t offset2;
+    //     uint32_t length2;
+    //     uint8_t *data2;
+
+    //     // destructor
+    //     ~bl_data(void) {
+    //         delete[] data1;
+    //         delete[] data2;
+    //     }
+    // };
+
+    // static struct bl_data *read_bootloader(void);
+
 #endif
+
+#else
+void check_firmware_print(void);
+
 
 class AP_CheckFirmware {
 public:
