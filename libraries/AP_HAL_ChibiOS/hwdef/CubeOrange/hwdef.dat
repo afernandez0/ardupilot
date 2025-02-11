@@ -7,3 +7,10 @@ include hwdef.inc
 
 # build ABIN for flash-from-bootloader support:
 env BUILD_ABIN True
+
+# ajfg
+define AP_ADD_CHECKSUMS_ENABLED      1
+
+# Root folder 'build/board_name'
+env AP_FIRMWARE_CHECKSUM_FILE        bin/arducopter.chksum
+env AP_PARAMETERS_CHECKSUM_FILE      processed_defaults.chksum

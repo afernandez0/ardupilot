@@ -28,6 +28,8 @@ enum class check_fw_result_t : uint8_t {
     FAIL_REASON_BAD_LENGTH_DESCRIPTOR = 16,
     FAIL_REASON_BAD_FIRMWARE_SIGNATURE = 17,
     FAIL_REASON_VERIFICATION = 18,
+    // ajfg. To be updated after merge
+    FAIL_REASON_BAD_CHECKSUM = 25,
 };
 
 #ifndef FW_MAJOR
@@ -128,6 +130,12 @@ struct PACKED ap_secure_data {
 check_fw_result_t check_good_firmware(void);
 #else
 void check_firmware_print(void);
+
+// ajfg
+#if AP_ADD_CHECKSUMS_ENABLED 
+#define AP_CHECKSUM_LEN_CHARS  64
+check_fw_result_t verify_checksums(void);
+#endif
 
 class AP_CheckFirmware {
 public:

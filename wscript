@@ -850,11 +850,9 @@ def _build_post_funs(bld):
         if bld.cmd != 'bootloader':
             bld.build_calculate_checksum()
 
-            # At the moment, we do not add the checksum to the RomFS.
-            # We will add the signature of the firmware
-            # TODO: bld.add_signatures_romfs()
-            
-        # ajfg        
+            bld.add_signatures_romfs()           
+            # ajfg
+        
         bld.build_summary_post_fun()
 
     if bld.env.SUBMODULE_UPDATE:

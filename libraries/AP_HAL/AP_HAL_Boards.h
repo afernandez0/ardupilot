@@ -313,6 +313,11 @@
 #define AP_BOOTLOADER_FLASHING_ENABLED 0
 #endif
 
+// ajfg
+#ifndef AP_ADD_CHECKSUMS_ENABLED
+#define AP_ADD_CHECKSUMS_ENABLED 0
+#endif
+
 #ifndef HAL_HNF_MAX_FILTERS
 // On an F7 The difference in CPU load between 1 notch and 24 notches is about 2%
 // The difference in CPU load between 1Khz backend and 2Khz backend is about 10%

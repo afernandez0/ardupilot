@@ -228,4 +228,61 @@ void check_firmware_print(void)
 #endif
 
 
+// ajfg
+#if AP_ADD_CHECKSUMS_ENABLED 
+/*
+  Verify the checksum of the firmware and the persistent parameters
+  If they do not match, boot will fail
+*/
+check_fw_result_t verify_checksums(void)
+{
+    const uint8_t *flash_address = (const uint8_t *)(FLASH_LOAD_ADDRESS + (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB)*1024);
+    const uint32_t flash_size = (BOARD_FLASH_SIZE - (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB))*1024;
+    // const app_descriptor_unsigned *ad = (const app_descriptor_unsigned *)memmem(flash1, flash_size-sizeof(app_descriptor_unsigned), sig, sizeof(sig));
+
+    // if (ad == nullptr) {
+    //     // no application signature
+    //     return check_fw_result_t::FAIL_REASON_NO_APP_SIG;
+    // }
+
+    struct bl_data *AP_CheckFirmware::read_bootloader();
+    if (bld_data == nullptr) {
+        GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Failed to load bootloader into memory. Verify checksums");
+        return check_fw_result_t::FAIL_REASON_BAD_CHECKSUM;
+    }
+
+    // Get firmware checksum from ROMFS
+    // params checksum 64 bytes (2 chars) from the end
+    // firmware checksum 64 bytes before params checksum
+    unsigned char firmware_checksum[AP_CHECKSUM_LEN_CHARS];
+    unsigned char params_checksum[AP_CHECKSUM_LEN_CHARS];
+
+    memcpy(&firmware_checksum, (flash_address + flash_size - AP_CHECKSUM_LEN_CHARS), AP_CHECKSUM_LEN_CHARS);
+    memcpy(&params_checksum, (flash_address + flash_size - AP_CHECKSUM_LEN_CHARS), AP_CHECKSUM_LEN_CHARS);
+
+    // Calculate checksum sha256 of the firmware
+    byte calculated_hash[AP_CHECKSUM_LEN_CHARS];
+
+    if ( wc_Sha256Hash(
+        //const byte * data,
+        flash_address,
+        //word32 len,
+        flash_size,
+        ///byte * hash
+        calculated_hash) != 0) {
+        // Error
+        return check_fw_result_t::FAIL_REASON_BAD_CHECKSUM;
+    }
+
+    // Compare checksums
+    if (memcmp(&firmware_checksum, calculated_hash) != 0) {
+    // if (memcmp((const uint8_t*)&sig_version, ad->signature, sizeof(sig_version)) != 0) {
+        // Error
+        return check_fw_result_t::FAIL_REASON_BAD_CHECKSUM;
+    }
+
+    return check_fw_result_t::CHECK_FW_OK;
+}
+#endif
+
 #endif // AP_CHECK_FIRMWARE_ENABLED
