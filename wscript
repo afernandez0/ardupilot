@@ -134,6 +134,8 @@ def options(opt):
     opt.load('compiler_cxx compiler_c waf_unit_test python')
     opt.load('ardupilotwaf')
     opt.load('build_summary')
+    # ajfg
+    opt.load('calculate_checksum')
 
     g = opt.ap_groups['configure']
 
@@ -549,7 +551,9 @@ def configure(cfg):
     cfg.load('gtest')
     cfg.load('static_linking')
     cfg.load('build_summary')
-
+    # ajfg
+    cfg.load('calculate_checksum')
+    
     cfg.start_msg('Benchmarks')
     if cfg.env.HAS_GBENCHMARK:
         cfg.end_msg('enabled')
@@ -841,6 +845,14 @@ def _build_post_funs(bld):
     if bld.cmd == 'check':
         bld.add_post_fun(ardupilotwaf.test_summary)
     else:
+        # ajfg
+        # Do not calculate the checksum for the bootloader
+        if bld.cmd != 'bootloader':
+            bld.build_calculate_checksum()
+
+            bld.add_signatures_romfs()           
+            # ajfg
+        
         bld.build_summary_post_fun()
 
     if bld.env.SUBMODULE_UPDATE:

@@ -42,3 +42,6 @@
 [submodule "modules/lwip"]
 	path = modules/lwip
 	url = https://github.com/ArduPilot/lwip.git
+[submodule "modules/wolfssl"]
+	path = modules/wolfssl
+	url = https://github.com/ardupilot/wolfssl.git

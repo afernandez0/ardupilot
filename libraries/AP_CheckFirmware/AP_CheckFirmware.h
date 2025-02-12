@@ -28,6 +28,11 @@ enum class check_fw_result_t : uint8_t {
     FAIL_REASON_BAD_LENGTH_DESCRIPTOR = 16,
     FAIL_REASON_BAD_FIRMWARE_SIGNATURE = 17,
     FAIL_REASON_VERIFICATION = 18,
+    // ajfg
+    FAIL_REASON_WOLF_INIT_FAILED=19,
+    FAIL_REASON_WOLF_ENCODE_SIGNATURE=20,
+    FAIL_REASON_HASH_FAILED=21,
+    FAIL_REASON_BAD_CHECKSUM = 22,
 };
 
 #ifndef FW_MAJOR
@@ -87,7 +92,9 @@ struct app_descriptor_signed {
 
     // firmware signature
     uint32_t signature_length = 0;
-    uint8_t signature[72] = {};
+    // ajfg. Previous  72 = 8 + 64 (sigver, sig)
+    //       Now      264 = 8 + 256 (sigver, sig)
+    uint8_t signature[264] = {};
 
     // software version number
     uint8_t  version_major = APP_FW_MAJOR;
@@ -105,15 +112,17 @@ typedef struct app_descriptor_unsigned app_descriptor_t;
 #endif
 
 #define APP_DESCRIPTOR_UNSIGNED_TOTAL_LENGTH 36
-#define APP_DESCRIPTOR_SIGNED_TOTAL_LENGTH (APP_DESCRIPTOR_UNSIGNED_TOTAL_LENGTH+72+4)
+#define APP_DESCRIPTOR_SIGNED_TOTAL_LENGTH (APP_DESCRIPTOR_UNSIGNED_TOTAL_LENGTH+264+4)
 
 static_assert(sizeof(app_descriptor_unsigned) == APP_DESCRIPTOR_UNSIGNED_TOTAL_LENGTH, "app_descriptor_unsigned incorrect length");
 static_assert(sizeof(app_descriptor_signed) == APP_DESCRIPTOR_SIGNED_TOTAL_LENGTH, "app_descriptor_signed incorrect length");
 
 #if AP_SIGNED_FIRMWARE
 
-#define AP_PUBLIC_KEY_LEN 32
-#define AP_PUBLIC_KEY_MAX_KEYS 10
+// ajfg. Previous  32
+//       Now      256
+#define AP_PUBLIC_KEY_LEN 256
+#define AP_PUBLIC_KEY_MAX_KEYS 5
 #define AP_PUBLIC_KEY_SIGNATURE {0x4e, 0xcf, 0x4e, 0xa5, 0xa6, 0xb6, 0xf7, 0x29}
 
 struct PACKED ap_secure_data {
@@ -126,8 +135,39 @@ struct PACKED ap_secure_data {
 
 #ifdef HAL_BOOTLOADER_BUILD
 check_fw_result_t check_good_firmware(void);
+
+// ajfg
+#if AP_ADD_CHECKSUMS_ENABLED 
+check_fw_result_t verify_checksums(void);
+
+
+
+    // /*
+    //   in memory structure representing the current bootloader. It has two
+    //   data regions to cope with persistent data at the end of the
+    //   bootloader sector
+    // */
+    // struct bl_data {
+    //     uint32_t length1;
+    //     uint8_t *data1;
+    //     uint32_t offset2;
+    //     uint32_t length2;
+    //     uint8_t *data2;
+
+    //     // destructor
+    //     ~bl_data(void) {
+    //         delete[] data1;
+    //         delete[] data2;
+    //     }
+    // };
+
+    // static struct bl_data *read_bootloader(void);
+
+#endif
+
 #else
 void check_firmware_print(void);
+
 
 class AP_CheckFirmware {
 public:

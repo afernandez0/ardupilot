@@ -370,6 +370,16 @@ Util::FlashBootloader Util::flash_bootloader()
         }
         Debug("Flash OK\n");
 #if HAL_ENABLE_SAVE_PERSISTENT_PARAMS
+    // ajfg
+    #if AP_ADD_CHECKSUMS_ENABLED
+        // Add firmware checksum 64 bytes string hex
+        get_firmware_checksum(persistent_params);
+
+        // Add default parameters checksum 64 bytes string hex
+        get_parameters_checksum(persistent_params);
+    #endif
+
+
         if (persistent_params.get_length()) {
             const uint32_t ofs = hal.flash->getpagesize(0) - persistent_params.get_length();
             hal.flash->write(addr+ofs, persistent_params.get_string(), persistent_params.get_length());
@@ -557,6 +567,47 @@ bool Util::get_persistent_params(ExpandingString &str) const
     }
     return !str.has_failed_allocation();
 }
+
+// ajfg
+#if AP_ADD_CHECKSUMS_ENABLED    
+/*
+   Read the checksum from a predefined RomFS file and add to the String
+*/
+void Util::get_firmware_checksum(ExpandingString &str) const
+{
+    const char *fw_name = "firmware.chksum";
+    uint32_t fw_size{};
+
+    const uint8_t *fw = AP_ROMFS::find_decompress(fw_name, fw_size);
+    if (!fw) {
+        Debug("failed to find %s\n", fw_name);
+        return;
+    }
+
+    // Store the checksum
+    str.append(reinterpret_cast<const char *>(fw), fw_size);
+    Debug("Firmware checksum correctly loaded");
+}
+
+/*
+   Read the checksum from a predefined RomFS file and add to the String
+*/
+void Util::get_parameters_checksum(ExpandingString &str) const
+{
+    const char *fw_name = "params.chksum";
+    uint32_t fw_size{};
+
+    const uint8_t *fw = AP_ROMFS::find_decompress(fw_name, fw_size);
+    if (!fw) {
+        Debug("failed to find %s\n", fw_name);
+        return;
+    }
+
+    // Store the checksum
+    str.append(reinterpret_cast<const char *>(fw), fw_size);
+    Debug("Parameters checksum correctly loaded");
+}
+#endif
 
 /*
   load a set of persistent parameters in string form from the bootloader sector

@@ -126,6 +126,17 @@ int main(void)
         try_boot = false;
         timeout = 0;
     }
+// ajfg
+#if AP_ADD_CHECKSUMS_ENABLED 
+    const auto ok_cksum = verify_checksums();
+    if (ok_cksum != check_fw_result_t::CHECK_FW_OK) {
+        // bad firmware, don't try and boot
+        timeout = 0;
+        try_boot = false;
+        led_set(LED_BAD_FW);
+    }
+#endif
+
 #if AP_CHECK_FIRMWARE_ENABLED
     const auto ok = check_good_firmware();
     if (ok != check_fw_result_t::CHECK_FW_OK) {
@@ -151,6 +162,17 @@ int main(void)
         timeout = 0;
     }
 #elif AP_CHECK_FIRMWARE_ENABLED
+// ajfg
+#if AP_ADD_CHECKSUMS_ENABLED 
+    const auto ok_cksum = verify_checksums();
+    if (ok_cksum != check_fw_result_t::CHECK_FW_OK) {
+        // bad firmware, don't try and boot
+        timeout = 0;
+        try_boot = false;
+        led_set(LED_BAD_FW);
+    }
+#endif
+
     const auto ok = check_good_firmware();
     if (ok != check_fw_result_t::CHECK_FW_OK) {
         // bad firmware, don't try and boot
