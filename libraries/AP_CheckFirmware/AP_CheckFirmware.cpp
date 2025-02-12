@@ -26,13 +26,6 @@
 #define MAX_ENC_ALG_SZ      32
 
 
-// ajfg
-#include <wolfssl/options.h>
-#include <wolfssl/wolfcrypt/settings.h>
-#include <wolfssl/wolfcrypt/types.h>
-#include <wolfssl/wolfcrypt/sha256.h>
-
-
 const struct ap_secure_data public_keys __attribute__((section(".apsec_data")));
 
 /*
@@ -56,7 +49,9 @@ static bool all_zero_public_keys(void)
 /*
   check a signature against bootloader keys
  */
-#pragma GCC diagnostic error "-Wframe-larger-than=7000"
+// ajfg: This pragma extends the frame so the compiler does not complain about
+// the extra size
+#pragma GCC diagnostic error "-Wframe-larger-than=5000"
 static check_fw_result_t check_firmware_signature(const app_descriptor_signed *ad,
                                                   const uint8_t *flash1, uint32_t len1,
                                                   const uint8_t *flash2, uint32_t len2)
@@ -306,8 +301,6 @@ check_fw_result_t check_good_firmware(void)
     return ret;
 #endif
 }
-
-
 
 
 // ajfg
