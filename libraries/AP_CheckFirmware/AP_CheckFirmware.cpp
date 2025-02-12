@@ -12,7 +12,19 @@
 #if AP_SIGNED_FIRMWARE
 #include "../../Tools/AP_Bootloader/support.h"
 #include <string.h>
-#include "monocypher.h"
+
+// ajfg
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/settings.h>
+
+#include <wolfssl/wolfcrypt/rsa.h>
+#include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
+
+// Maximum bound on digest algorithm encoding around digest 
+#define MAX_ENC_ALG_SZ      32
+
 
 // ajfg
 #include <wolfssl/options.h>
@@ -44,6 +56,7 @@ static bool all_zero_public_keys(void)
 /*
   check a signature against bootloader keys
  */
+#pragma GCC diagnostic error "-Wframe-larger-than=7000"
 static check_fw_result_t check_firmware_signature(const app_descriptor_signed *ad,
                                                   const uint8_t *flash1, uint32_t len1,
                                                   const uint8_t *flash2, uint32_t len2)
@@ -54,31 +67,117 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
 
     // 8 byte signature version
     static const uint64_t sig_version = 30437LLU;
-    if (ad->signature_length != 72) {
+    // ajfg. Previous  72 = 8 + 64 (sigver, sig)
+    //       Now      264 = 8 + 256 (sigver, sig)
+    if (ad->signature_length != 264) {
         return check_fw_result_t::FAIL_REASON_BAD_FIRMWARE_SIGNATURE;
     }
     if (memcmp((const uint8_t*)&sig_version, ad->signature, sizeof(sig_version)) != 0) {
         return check_fw_result_t::FAIL_REASON_BAD_FIRMWARE_SIGNATURE;
     }
 
+    if (wolfCrypt_Init() != 0) {
+        return check_fw_result_t::FAIL_REASON_WOLF_INIT_FAILED;
+    }
+
     /*
       look over all public keys, if one matches then we are OK
      */
-    for (const auto &public_key : public_keys.public_key) {
-        crypto_check_ctx ctx {};
-        crypto_check_ctx_abstract *actx = (crypto_check_ctx_abstract*)&ctx;
-        crypto_check_init(actx, &ad->signature[sizeof(sig_version)], public_key.key);
+    int             ret = 0;
+    wc_Sha256       sha;
+    wc_Sha256*      pSha256 = nullptr;
+    unsigned char   digest[WC_SHA256_DIGEST_SIZE];
 
-        crypto_check_update(actx, flash1, len1);
-        crypto_check_update(actx, flash2, len2);
-        if (crypto_check_final(actx) == 0) {
-            // good signature
-            return check_fw_result_t::CHECK_FW_OK;
+    unsigned char   encSig[WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ];
+    word32          encSigLen = 0;
+    unsigned char*  decSig = nullptr;
+    word32          decSigLen = 0;
+
+    RsaKey          rsaKey;
+    RsaKey*         pRsaKey = nullptr;
+    word32          idx = 0;
+
+
+    // Calculate the digest (sha256) of the flash memory
+    ret = wc_InitSha256(&sha);
+    if (ret != 0) {
+        return check_fw_result_t::FAIL_REASON_HASH_FAILED;
+    }
+    pSha256 = &sha;
+
+    wc_Sha256Update(&sha, flash1, len1);
+    wc_Sha256Update(&sha, flash2, len2);
+    ret = wc_Sha256Final(&sha, digest);
+    if (ret != 0) {
+        return check_fw_result_t::FAIL_REASON_WOLF_INIT_FAILED;
+    }
+    
+    // Encode digest with algorithm information as per PKCS#1.5 
+    // Same algorithm as make_secure_fw.py
+    encSigLen = wc_EncodeSignature(encSig, digest, sizeof(digest), SHA256h);
+
+    
+    // Encoded signature is ok
+    if ((int) encSigLen >= 0) {
+        for (const auto &public_key : public_keys.public_key) {
+
+            // Try next key
+            // Initialize the RSA key and decode the DER encoded public key
+            ret = wc_InitRsaKey(&rsaKey, nullptr);
+            if (ret != 0) {
+                break;
+            }
+            pRsaKey = &rsaKey;
+
+            // Read the next public key
+            idx = 0;
+            ret = wc_RsaPublicKeyDecode(public_key.key, &idx, &rsaKey, sizeof(public_key.key));
+            if (ret != 0) {
+                break;
+            }
+
+            // Verify the signature by decrypting the value
+            // Skip signature version
+            decSigLen = wc_RsaSSL_VerifyInline(const_cast<byte*>(&ad->signature[sizeof(sig_version)]), ad->signature_length,
+                                               &decSig, &rsaKey);
+            if ((int)decSigLen < 0) {
+                ret = -1;
+                break;
+            }
+                
+            if (encSigLen != decSigLen) {
+                ret = -1;
+                break;
+            }
+
+            // Compare both signatures
+            if (XMEMCMP(encSig, decSig, encSigLen) == 0) {
+                // Signature ok
+                ret = 0;
+                break;
+            }
+
+            // Free the data structures
+            if (pRsaKey != nullptr) {
+                wc_FreeRsaKey(pRsaKey);
+                pRsaKey = nullptr;
+            }
         }
     }
 
+    // Free the data structures
+    if (pRsaKey != nullptr)
+        wc_FreeRsaKey(pRsaKey);
+
+    if (pSha256 != nullptr)
+        wc_Sha256Free(pSha256);    
+        
+    wolfCrypt_Cleanup();
     // none of the public keys matched
-    return check_fw_result_t::FAIL_REASON_VERIFICATION;
+    if (ret == 0)
+        return check_fw_result_t::CHECK_FW_OK;
+    else 
+        return check_fw_result_t::FAIL_REASON_VERIFICATION;
 }
 #endif // AP_SIGNED_FIRMWARE
 
@@ -110,7 +209,7 @@ static check_fw_result_t check_good_firmware_signed(void)
     }
 
     const uint8_t *flash2 = (const uint8_t *)&ad->version_major;
-    const uint8_t desc_len = offsetof(app_descriptor_signed, version_major) - offsetof(app_descriptor_signed, image_crc1);
+    const uint32_t desc_len = offsetof(app_descriptor_signed, version_major) - offsetof(app_descriptor_signed, image_crc1);
     const uint32_t len1 = ((const uint8_t *)&ad->image_crc1) - flash1;
 
     if ((len1 + desc_len) > ad->image_size) {

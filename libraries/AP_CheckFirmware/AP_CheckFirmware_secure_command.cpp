@@ -201,7 +201,7 @@ bool AP_CheckFirmware::check_signature(const mavlink_secure_command_t &pkt)
         return true;
     }
     if (pkt.sig_length != 64) {
-        // monocypher signatures are 64 bytes
+        // monocypher signatures are 64 bytes    
         return false;
     }
     /*
