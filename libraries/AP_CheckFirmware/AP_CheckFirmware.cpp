@@ -237,28 +237,47 @@ check_fw_result_t verify_checksums(void)
     // Get firmware checksum from ROMFS
     // params checksum 64 bytes (2 chars) from the end
     // firmware checksum 64 bytes before params checksum
-    unsigned char firmware_checksum[AP_CHECKSUM_LEN_CHARS];
-    unsigned char params_checksum[AP_CHECKSUM_LEN_CHARS];
+    unsigned char firmware_checksum[WC_SHA256_DIGEST_SIZE];
+    unsigned char params_checksum[WC_SHA256_DIGEST_SIZE];
 
-    memcpy(&firmware_checksum, (flash_address + flash_size - AP_CHECKSUM_LEN_CHARS), AP_CHECKSUM_LEN_CHARS);
-    memcpy(&params_checksum, (flash_address + flash_size - AP_CHECKSUM_LEN_CHARS), AP_CHECKSUM_LEN_CHARS);
+    memcpy(&firmware_checksum, (flash_address + flash_size - WC_SHA256_DIGEST_SIZE), WC_SHA256_DIGEST_SIZE);
+    memcpy(&params_checksum, (flash_address + flash_size - WC_SHA256_DIGEST_SIZE), WC_SHA256_DIGEST_SIZE);
 
     // Calculate checksum sha256 of the firmware
-    unsigned char calculated_hash[AP_CHECKSUM_LEN_CHARS];
+    unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
 
-    // if ( wc_Sha256Hash(
-    //     //const byte * data,
-    //     flash_address,
-    //     //word32 len,
-    //     flash_size,
-    //     ///byte * hash
-    //     calculated_hash) != 0) {
-    //     // Error
-    //     return check_fw_result_t::FAIL_REASON_BAD_CHECKSUM;
-    // }
+    int ret = -1;
+    wc_Sha256 sha256;
+    // byte  hash[WC_SHA256_DIGEST_SIZE];
+    ret = wc_InitSha256(&sha256);
+    if (ret != 0) {
+        // TODO: Log a message
+        // printf("Failed to update the hash\n");
+        // Error
+        return check_fw_result_t::FAIL_REASON_BAD_CHECKSUM;
+    }
+
+    ret = wc_Sha256Update(&sha256, flash_address, flash_size);
+
+    if (ret != 0) {
+        // TODO: Log a message
+        // printf("Failed to update the hash\n");
+        // Error
+        return check_fw_result_t::FAIL_REASON_BAD_CHECKSUM;
+    }
+
+    ret = wc_Sha256Final(&sha256, calculated_hash);
+    if (ret != 0) {
+        // TODO: Log a message
+        // printf("ERROR: Hash operation failed");
+        // Error
+        return check_fw_result_t::FAIL_REASON_BAD_CHECKSUM;
+    }
+        
+    wc_Sha256Free(&sha256);
 
     // Compare checksums
-    if (memcmp(&firmware_checksum, calculated_hash, 64) != 0) {
+    if (memcmp(&firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
     // if (memcmp((const uint8_t*)&sig_version, ad->signature, sizeof(sig_version)) != 0) {
         // Error
         return check_fw_result_t::FAIL_REASON_BAD_CHECKSUM;

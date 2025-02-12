@@ -47,12 +47,10 @@ extern "C" {
 // in the 'options' file. 
 // This file contains just a tailor over the 'options' file
 
-// HW RNG support 
-unsigned int chibios_rand_generate(void);
-int custom_rand_generate_block(unsigned char* output, unsigned int sz);
-
-#define CUSTOM_RAND_GENERATE chibios_rand_generate
-#define CUSTOM_RAND_TYPE uint32_t
+/* bypass certificate date checking, due to lack of properly configured RTC source */
+#ifndef HAL_RTC_MODULE_ENABLED
+    #define NO_ASN_TIME
+#endif
 
 #ifdef __cplusplus
 }

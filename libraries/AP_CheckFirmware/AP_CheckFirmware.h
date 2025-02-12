@@ -131,7 +131,6 @@ check_fw_result_t check_good_firmware(void);
 
 // ajfg
 #if AP_ADD_CHECKSUMS_ENABLED 
-#define AP_CHECKSUM_LEN_CHARS  64
 check_fw_result_t verify_checksums(void);
 
 
