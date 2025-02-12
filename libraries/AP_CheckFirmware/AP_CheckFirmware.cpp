@@ -14,6 +14,13 @@
 #include <string.h>
 #include "monocypher.h"
 
+// ajfg
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/settings.h>
+#include <wolfssl/wolfcrypt/types.h>
+#include <wolfssl/wolfcrypt/sha256.h>
+
+
 const struct ap_secure_data public_keys __attribute__((section(".apsec_data")));
 
 /*
