@@ -59,10 +59,12 @@ def build(bld):
         wolfssl_source = [bld.path.find_node('libraries/AP_CheckFirmware/wolfssl/user_settings.h'),
                           bld.bldnode.find_or_declare('modules/ChibiOS/libch.a'),
                           bld.bldnode.find_or_declare('modules/ChibiOS/include_dirs')]
-        # -I${SRCROOT}/libraries/AP_HAL_ChibiOS/hwdef/common/ -I${SRCROOT}/modules/ChibiOS/os/hal/include/ -I${SRCROOT}/modules/ChibiOS/os/common/portability/GCC/
+        # Main configuration is generated using 'configure', which creates the 'options.h'
+        # file. The 'user_settings.h' is just a tailoring of that file
+        #  --disable-rng
         wolfssl_task = bld(
             #build libwolfssl.a from WolfSSL sources
-            rule="cd ${WOLFSSL_ROOT} && ./configure --enable-static --disable-shared --host=arm-none-eabi CC=arm-none-eabi-gcc AR=arm-none-eabi-ar STRIP=arm-none-eabi-strip RANLIB=arm-none-eabi-ranlib --prefix=${WOLFSSL_BUILDDIR} CFLAGS=\"--specs=nosys.specs -mthumb ${EXTRA_CFLAGS} -DWOLFSSL_USER_SETTINGS -I${WOLFSSL_USER_HEADERS}  -I${BUILDROOT}  -Wno-error=unused-parameter -Wno-error=strict-prototypes \" --disable-filesystem --enable-sha --enable-keygen --enable-rsa --disable-oldnames && make clean && make && make install",
+            rule="cd ${WOLFSSL_ROOT} && ./configure --enable-static --disable-shared --host=arm-none-eabi CC=arm-none-eabi-gcc AR=arm-none-eabi-ar STRIP=arm-none-eabi-strip RANLIB=arm-none-eabi-ranlib --prefix=${WOLFSSL_BUILDDIR} CFLAGS=\"--specs=nosys.specs -mthumb ${EXTRA_CFLAGS} -DWOLFSSL_USER_SETTINGS -I${WOLFSSL_USER_HEADERS}  -I${BUILDROOT}  -Wno-error=unused-parameter -Wno-error=strict-prototypes \" -enable-cryptonly  --enable-sp --enable-rsa --enable-fastmath --enable-sha -enable-oldtls --enable-tlsv12 --disable-tls13  --disable-ecc --enable-eccshamir --disable-oaep --disable-dh --disable-sha3 --disable-sha224 --disable-md5  --disable-pkcs12 --disable-memory --disable-chacha --disable-poly1305 --disable-sha512 --disable-sha384 --disable-aesgcm --disable-aescbc --disable-aes --disable-kdf --disable-hmac --disable-filesystem --disable-oldnames --disable-examples --disable-crypttests --disable-benchmark && make clean && make && make install",
             group='dynamic_sources',
             source=wolfssl_source,
             target=bld.bldnode.find_or_declare('lib/libwolfssl.a')
