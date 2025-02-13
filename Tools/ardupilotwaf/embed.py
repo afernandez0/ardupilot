@@ -19,12 +19,18 @@ def calculate_checksum_file(in_filename, in_extension, in_buffer):
     # print("    new buffer: [",new_buffer,"]",len(new_buffer))
     # print("    SHA256: ", h.hexdigest() )
 
-    # Save to a file
-    checksum_filename = in_filename + ".chksum"
+    # Save to a ASC file
+    checksum_filename = in_filename + ".asc"
     # Reconstruct the original filename
     only_filename = os.path.basename(in_filename) + in_extension
     with open(checksum_filename, "w") as nf:
-        nf.write(f"{h.hexdigest()}")
+        nf.write(f"{h.hexdigest()}  {only_filename}")
+
+    # Save to a binary file
+    checksum_filename = in_filename + ".chksum"
+    with open(checksum_filename, "wb") as nf:
+        nf.write(h.digest())
+
 
 def write_encode(out, s):
     out.write(s.encode())

@@ -54,15 +54,22 @@ def calculate_checksum(in_filename : str):
         save_checksum(in_filename, line)
 
 
+""" Save the calculated checksum in an ASCII file and binary file """
 def save_checksum(in_filename: str, in_checksum: str):
     # Extract checksum. The first part
     line_parts = in_checksum.split(" ")
 
     pre, ext = os.path.splitext(in_filename)
 
-    new_name = in_filename.replace(".", "_") + ".chksum"
+    # Save the ASC file 
+    new_name = in_filename.replace(".", "_") + ".asc"
     with open(new_name, "w") as nf:
-        nf.write( line_parts[0] )  
+        nf.write( in_checksum )  
+
+    # Save the binary file 
+    new_name = in_filename.replace(".", "_") + ".chksum"
+    with open(new_name, "wb") as nf:
+        nf.write( bytes.fromhex(line_parts[0]) )
         
 
 def _build_calculate_checksum(bld):
@@ -78,7 +85,7 @@ def _build_calculate_checksum(bld):
         pre, ext = os.path.splitext(filename)
 
         # Skip chksum files 
-        if ext != None and ext == ".chksum":
+        if ext != None and ext == ".chksum" and ext == ".asc":
            text("   Skipping existing chksum file")
            continue
 
