@@ -5,6 +5,7 @@ sign an ArduPilot APJ firmware with a private key
 
 import binascii
 import sys
+import os
 import struct
 import json, base64, zlib
 
@@ -48,6 +49,22 @@ def decode_key(ktype, key):
         sys.exit(1)
 
     return base64.b64decode(key[len(ktype):])
+
+""" Save the calculated checksum in an ASCII file and binary file """
+def save_checksum(in_filename: str, in_checksum: any):
+    pre, ext = os.path.splitext(in_filename)
+
+    # Save the ASC file 
+    new_name = in_filename.replace(".", "_") + ".asc"
+    with open(new_name, "w") as nf:
+        nf.write( f"{in_checksum.hexdigest()}  {in_filename}")  
+
+    # Save the binary file 
+    new_name = in_filename.replace(".", "_") + ".chksum"
+    with open(new_name, "wb") as nf:
+        # nf.write( bytes.fromhex(line_parts[0]) )
+        nf.write(in_checksum.digest())
+        
 
 # =============================================================
 # =============================================================
@@ -102,6 +119,9 @@ desc_len = 284
 digest = SHA256.new(img[:offset] + img[offset+desc_len:])
 signer = pkcs1_15.new(private_key)
 signature = signer.sign(digest)
+
+# Save the checksum to ascii and binary files
+save_checksum(apj_file, digest)
 
 siglen = to_unsigned(len(signature))
 # Note: Previous 72 = 8 + 64 (sigver, sig)

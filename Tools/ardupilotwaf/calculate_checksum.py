@@ -85,8 +85,8 @@ def _build_calculate_checksum(bld):
         pre, ext = os.path.splitext(filename)
 
         # Skip chksum files 
-        if ext != None and ext == ".chksum" and ext == ".asc":
-           text("   Skipping existing chksum file")
+        if ext != None and (ext == ".chksum" or ext == ".asc"):
+           text("   Skipping existing chksum file: ", filename)
            continue
 
         calculate_checksum( os.path.join( build_directory, filename) )
