@@ -1,10 +1,13 @@
 import sys
 import os
 import subprocess as sp
+import shutil
 
 
 from waflib import Context, Logs, Node
 from waflib.Configure import conf
+
+import embed
 
 
 def text(label, text=''):
@@ -92,11 +95,7 @@ def _build_calculate_checksum(bld):
         calculate_checksum( os.path.join( build_directory, filename) )
 
 
-def _add_signatures_romfs(bld):
-    Logs.info('')
-
-    text('Adding signature files to ROMFS')
-
+def modify_romfs(bld):
     header_filename = bld.bldnode.make_node('ap_romfs_embedded.h').abspath()
     print("**** HEADER = ", header_filename)
     # print("              ",bld.bldnode.abspath())
@@ -131,8 +130,6 @@ def _add_signatures_romfs(bld):
                     break
 
         print(f"Last file index: {last_fileindex}")
-
-    import embed
 
     with open(header_filename, "r+b") as romfs:
 
@@ -190,6 +187,52 @@ def _add_signatures_romfs(bld):
             previous_line_position = romfs.tell()
 
 
+def _add_checksums_romfs(bld):
+    Logs.info('')
+
+    text('Adding signature files to ROMFS')
+
+    from pathlib import Path
+
+    path_to_list_romfs_files = Path("romfs_files.txt")
+    if path_to_list_romfs_files.is_file():
+        # file exists
+        list_files_file = open("romfs_files.txt", "a+")
+
+        # Write the file to the list of files for a further processing
+        tmp_filename = os.path.join( bld.bldnode.abspath(), bld.env.AP_FIRMWARE_CHECKSUM_FILE)
+        list_files_file.write(tmp_filename) 
+        list_files_file.write("\n") 
+
+        # Write the file to the list of files for a further processing
+        tmp_filename = os.path.join( bld.bldnode.abspath(), bld.env.AP_PARAMETERS_CHECKSUM_FILE)
+        list_files_file.write(tmp_filename) 
+        list_files_file.write("\n") 
+
+        list_files_file.close()
+
+        header_file = bld.bldnode.make_node('ap_romfs_embedded.h').abspath()
+        print("  ==== ", header_file)
+        copy_header_file = header_file.replace(".", "_") + ".txt"
+        print("  ==== ", copy_header_file)
+
+        # Make a copy of the file 
+        shutil.copy(header_file, copy_header_file)
+
+        # Create new list of files
+        new_list_files = bld.env.ROMFS_FILES
+        new_list_files += [("params_chksum", bld.env.AP_PARAMETERS_CHECKSUM_FILE)]
+        new_list_files += [("firmware_chksum", bld.env.AP_FIRMWARE_CHECKSUM_FILE)]
+        print(" === ", bld.env.ROMFS_FILES)
+        print(" === ", new_list_files)
+
+        # process all files with embed
+        if not embed.create_embedded_h(header_file, bld.env.ROMFS_FILES, bld.env.ROMFS_UNCOMPRESSED, False):
+            bld.fatal("Failed to created ap_romfs_embedded.h")
+
+    else:
+        modify_romfs(bld)
+
 @conf
 def build_calculate_checksum(bld):
     # if not bld.env.AP_PROGRAM_AS_STLIB:
@@ -197,6 +240,6 @@ def build_calculate_checksum(bld):
 
 
 @conf
-def add_signatures_romfs(bld):
-    bld.add_post_fun(_add_signatures_romfs)
+def add_checksums_romfs(bld):
+    bld.add_post_fun(_add_checksums_romfs)
 

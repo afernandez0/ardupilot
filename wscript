@@ -850,7 +850,7 @@ def _build_post_funs(bld):
         if bld.cmd != 'bootloader':
             bld.build_calculate_checksum()
 
-            bld.add_signatures_romfs()           
+            bld.add_checksums_romfs()           
             # ajfg
         
         bld.build_summary_post_fun()

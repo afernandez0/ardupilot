@@ -103,17 +103,26 @@ def crc32(bytes, crc=0):
             crc ^= (0xEDB88320 & mask)
     return crc
 
-def create_embedded_h(filename, files, uncompressed=False):
+def create_embedded_h(filename, files, uncompressed=False, list_files=False):
     '''create a ap_romfs_embedded.h file'''
 
     out = open(filename, "wb")
     write_encode(out, '''// generated embedded files for AP_ROMFS\n\n''')
+
+    if list_files:
+        list_files_file = open("romfs_files.txt", "w")
 
     # remove duplicates and sort
     files = sorted(list(set(files)))
     crc = {}
     for i in range(len(files)):
         (name, filename) = files[i]
+
+        if list_files:
+            # Write the file to the list of files for a further processing
+            list_files_file.write(f"f{name} f{filename}") 
+            list_files_file.write("\n") 
+
         try:
             crc[filename] = embed_file(out, filename, i, name, uncompressed)
         except Exception as e:
@@ -133,6 +142,7 @@ def create_embedded_h(filename, files, uncompressed=False):
     write_encode(out, '};\n')
     out.close()
     return True
+
 
 if __name__ == '__main__':
     import sys
