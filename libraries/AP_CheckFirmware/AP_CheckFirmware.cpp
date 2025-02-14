@@ -303,81 +303,7 @@ check_fw_result_t check_good_firmware(void)
 }
 
 
-// ajfg
-#if AP_ADD_CHECKSUMS_ENABLED 
-/*
-  Verify the checksum of the firmware and the persistent parameters
-  If they do not match, boot will fail
-*/
-check_fw_result_t verify_checksums(void)
-{
-    const uint8_t *flash_address = (const uint8_t *)(FLASH_LOAD_ADDRESS + (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB)*1024);
-    const uint32_t flash_size = (BOARD_FLASH_SIZE - (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB))*1024;
-    // const app_descriptor_unsigned *ad = (const app_descriptor_unsigned *)memmem(flash1, flash_size-sizeof(app_descriptor_unsigned), sig, sizeof(sig));
 
-    // if (ad == nullptr) {
-    //     // no application signature
-    //     return check_fw_result_t::FAIL_REASON_NO_APP_SIG;
-    // }
-
-    // struct bl_data *read_bootloader();
-    // if (bld_data == nullptr) {
-    //     GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Failed to load bootloader into memory. Verify checksums");
-    //     return check_fw_result_t::FAIL_REASON_BAD_CHECKSUM;
-    // }
-
-    // Get firmware checksum from ROMFS
-    // params checksum 64 bytes (2 chars) from the end
-    // firmware checksum 64 bytes before params checksum
-    unsigned char firmware_checksum[WC_SHA256_DIGEST_SIZE];
-    unsigned char params_checksum[WC_SHA256_DIGEST_SIZE];
-
-    memcpy(&firmware_checksum, (flash_address + flash_size - WC_SHA256_DIGEST_SIZE), WC_SHA256_DIGEST_SIZE);
-    memcpy(&params_checksum, (flash_address + flash_size - WC_SHA256_DIGEST_SIZE), WC_SHA256_DIGEST_SIZE);
-
-    // Calculate checksum sha256 of the firmware
-    unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
-
-    int ret = -1;
-    wc_Sha256 sha256;
-    // byte  hash[WC_SHA256_DIGEST_SIZE];
-    ret = wc_InitSha256(&sha256);
-    if (ret != 0) {
-        // TODO: Log a message
-        // printf("Failed to update the hash\n");
-        // Error
-        return check_fw_result_t::FAIL_REASON_BAD_CHECKSUM;
-    }
-
-    ret = wc_Sha256Update(&sha256, flash_address, flash_size);
-
-    if (ret != 0) {
-        // TODO: Log a message
-        // printf("Failed to update the hash\n");
-        // Error
-        return check_fw_result_t::FAIL_REASON_BAD_CHECKSUM;
-    }
-
-    ret = wc_Sha256Final(&sha256, calculated_hash);
-    if (ret != 0) {
-        // TODO: Log a message
-        // printf("ERROR: Hash operation failed");
-        // Error
-        return check_fw_result_t::FAIL_REASON_BAD_CHECKSUM;
-    }
-        
-    wc_Sha256Free(&sha256);
-
-    // Compare checksums
-    if (memcmp(&firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
-    // if (memcmp((const uint8_t*)&sig_version, ad->signature, sizeof(sig_version)) != 0) {
-        // Error
-        return check_fw_result_t::FAIL_REASON_BAD_CHECKSUM;
-    }
-
-    return check_fw_result_t::CHECK_FW_OK;
-}
-#endif
 
 #endif // HAL_BOOTLOADER_BUILD
 
@@ -406,3 +332,68 @@ void check_firmware_print(void)
 #endif
 
 #endif // AP_CHECK_FIRMWARE_ENABLED
+
+
+// ajfg
+#if AP_ADD_CHECKSUMS_ENABLED 
+/*
+  Verify the checksum of the firmware and the persistent parameters
+  If they do not match, boot will fail
+*/
+uint32_t verify_checksums(void)
+{
+    const uint8_t *flash_address = (const uint8_t *)(FLASH_LOAD_ADDRESS + (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB)*1024);
+    const uint32_t flash_size = (BOARD_FLASH_SIZE - (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB))*1024;
+
+    // Get firmware checksum from ROMFS
+    // default params checksum 32 bytes  from the end
+    // firmware checksum 32 bytes before params checksum
+    unsigned char firmware_checksum[WC_SHA256_DIGEST_SIZE];
+    unsigned char params_checksum[WC_SHA256_DIGEST_SIZE];
+
+    memcpy(&firmware_checksum,  (flash_address + flash_size - WC_SHA256_DIGEST_SIZE), WC_SHA256_DIGEST_SIZE);
+    memcpy(&params_checksum,    (flash_address + flash_size - WC_SHA256_DIGEST_SIZE), WC_SHA256_DIGEST_SIZE);
+
+    // Calculate checksum sha256 of the firmware
+    unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
+
+    int ret = -1;
+    wc_Sha256 sha256;
+
+    ret = wc_InitSha256(&sha256);
+    if (ret != 0) {
+        // TODO: Log a message
+        // printf("Failed to update the hash\n");
+        // Error
+        return -1;
+    }
+
+    ret = wc_Sha256Update(&sha256, flash_address, flash_size);
+
+    if (ret != 0) {
+        // TODO: Log a message
+        // printf("Failed to update the hash\n");
+        // Error
+        return -2;
+    }
+
+    ret = wc_Sha256Final(&sha256, calculated_hash);
+    if (ret != 0) {
+        // TODO: Log a message
+        // printf("ERROR: Hash operation failed");
+        // Error
+        return -3;
+    }
+        
+    wc_Sha256Free(&sha256);
+
+    // Compare checksums
+    if (memcmp(&firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
+    // if (memcmp((const uint8_t*)&sig_version, ad->signature, sizeof(sig_version)) != 0) {
+        // Error
+        return -4;
+    }
+
+    return 0;
+}
+#endif

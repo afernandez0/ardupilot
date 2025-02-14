@@ -379,7 +379,6 @@ Util::FlashBootloader Util::flash_bootloader()
         get_parameters_checksum(persistent_params);
     #endif
 
-
         if (persistent_params.get_length()) {
             const uint32_t ofs = hal.flash->getpagesize(0) - persistent_params.get_length();
             hal.flash->write(addr+ofs, persistent_params.get_string(), persistent_params.get_length());
@@ -575,6 +574,7 @@ bool Util::get_persistent_params(ExpandingString &str) const
 */
 void Util::get_firmware_checksum(ExpandingString &str) const
 {
+    // This value must be aligned with the value in ap_romfs_embedded.h
     const char *fw_name = "firmware.chksum";
     uint32_t fw_size{};
 
@@ -594,7 +594,8 @@ void Util::get_firmware_checksum(ExpandingString &str) const
 */
 void Util::get_parameters_checksum(ExpandingString &str) const
 {
-    const char *fw_name = "params.chksum";
+    // This value must be aligned with the value in ap_romfs_embedded.h
+    const char *fw_name = "defaults.chksum";
     uint32_t fw_size{};
 
     const uint8_t *fw = AP_ROMFS::find_decompress(fw_name, fw_size);
