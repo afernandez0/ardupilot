@@ -5,6 +5,17 @@
 #include <AP_HAL/HAL.h>
 #include <AP_Math/crc.h>
 
+// ajfg
+#if defined(HAL_BOOTLOADER_BUILD)
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/settings.h>
+
+#include <wolfssl/wolfcrypt/rsa.h>
+#include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
+#endif
+
 #if AP_CHECK_FIRMWARE_ENABLED
 
 #if defined(HAL_BOOTLOADER_BUILD)
@@ -13,14 +24,6 @@
 #include "../../Tools/AP_Bootloader/support.h"
 #include <string.h>
 
-// ajfg
-#include <wolfssl/options.h>
-#include <wolfssl/wolfcrypt/settings.h>
-
-#include <wolfssl/wolfcrypt/rsa.h>
-#include <wolfssl/wolfcrypt/sha256.h>
-#include <wolfssl/wolfcrypt/asn.h>
-#include <wolfssl/wolfcrypt/asn_public.h>
 
 // Maximum bound on digest algorithm encoding around digest 
 #define MAX_ENC_ALG_SZ      32
@@ -335,6 +338,8 @@ void check_firmware_print(void)
 
 
 // ajfg
+#if defined(HAL_BOOTLOADER_BUILD)
+
 #if AP_ADD_CHECKSUMS_ENABLED 
 /*
   Verify the checksum of the firmware and the persistent parameters
@@ -396,4 +401,5 @@ uint32_t verify_checksums(void)
 
     return 0;
 }
+#endif
 #endif

@@ -66,10 +66,12 @@ def save_checksum(in_filename: str, in_checksum: any):
         nf.write( f"{in_checksum.hexdigest()}  {in_filename}")  
 
     # Save the binary file 
-    new_name = in_filename.replace(".", "_") + ".chksum"
-    with open(new_name, "wb") as nf:
+    binary_name = in_filename.replace(".", "_") + ".chksum"
+    with open(binary_name, "wb") as nf:
         # nf.write( bytes.fromhex(line_parts[0]) )
         nf.write(in_checksum.digest())
+
+    return binary_name
 
 """Update a file in the RomFS"""
 def update_checksums_romfs(in_listfiles_filename: str, in_romfs_filename: str, in_key: str, in_new_filename: str):
@@ -106,6 +108,7 @@ def update_checksums_romfs(in_listfiles_filename: str, in_romfs_filename: str, i
             (filename, file_path) = a_file.strip().split(" ")
 
             if filename == in_key:
+                Logs.info("    Key found. Updated")
                 list_files += [(in_key, in_new_filename)]
             else:
                 list_files += [(filename, file_path)]
@@ -127,8 +130,8 @@ def update_checksums_romfs(in_listfiles_filename: str, in_romfs_filename: str, i
 # =============================================================
 # =============================================================
 
-if len(sys.argv) != 7:
-    print("Usage: make_secure_fw.py   APJ_FILE   PRIVATE_KEYFILE   LIST_FILES   ROMFS_FILE   FILE_KEY    FILE_PATH")
+if len(sys.argv) != 6:
+    print("Usage: make_secure_fw.py   APJ_FILE   PRIVATE_KEYFILE   LIST_FILES   ROMFS_FILE   FILE_KEY")
     print(" ")
     print("Where: ")
     print("  APJ_FILE. Filename and path of the firmware in APJ format")
@@ -136,9 +139,9 @@ if len(sys.argv) != 7:
     print("  LIST_FILES. Filename and path of the ile containing the list of files to be added to the RomFS. Absolute or relative path")
     print("  ROMFS_FILE. Filename and path of the RomFS include file. Absolute or relative path")
     print("  FILE_KEY. Key in the current ap_romfs_embedded.h file. Ie. processed_defaults.chksum")
-    print("  FILE_PATH. Absolute path and filename of the new file to be included in the RomFS")
     print(" ")
-    # $ Tools/scripts/signing/make_secure_fw.py build/CubeOrange/bin/arducopter.apj  aa_private_key.dat romfs_files.txt build/CubeOrange/ap_romfs_embedded.h   bin/arducopter.chksum  build/CubeOrange/bin/arducopter_apj.chksum 
+    # $ Tools/scripts/signing/make_secure_fw.py build/CubeOrange/bin/arducopter.apj  aa_private_key.dat romfs_files.txt build/CubeOrange/ap_romfs_embedded.h   firmware.chksum  
+    # checksum file = build/CubeOrange/bin/arducopter_apj.chksum 
     sys.exit(1)
 
 
@@ -186,9 +189,6 @@ digest = SHA256.new(img[:offset] + img[offset+desc_len:])
 signer = pkcs1_15.new(private_key)
 signature = signer.sign(digest)
 
-# Save the checksum to ascii and binary files
-save_checksum(apj_file, digest)
-
 siglen = to_unsigned(len(signature))
 # Note: Previous 72 = 8 + 64 (sigver, sig)
 #       Now     264 = 8 + 256
@@ -223,6 +223,14 @@ f.close()
 
 Logs.info("APJ file updated: %s" % apj_file)
 
-update_checksums_romfs(sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6])
+
+# Calculate the SHA256 of the whole image
+complete_digest = SHA256.new(img)
+
+# Save the new checksum
+checksum_file = save_checksum(apj_file, complete_digest)
+
+# Update the RomFS
+update_checksums_romfs(sys.argv[3], sys.argv[4], sys.argv[5], checksum_file)
 
 Logs.info("ROM FS file updated: %s" % sys.argv[4])

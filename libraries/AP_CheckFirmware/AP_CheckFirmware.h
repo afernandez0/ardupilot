@@ -184,30 +184,8 @@ private:
 
 
 // ajfg
-#if AP_ADD_CHECKSUMS_ENABLED 
-check_fw_result_t verify_checksums(void);
-
-
-
-    // /*
-    //   in memory structure representing the current bootloader. It has two
-    //   data regions to cope with persistent data at the end of the
-    //   bootloader sector
-    // */
-    // struct bl_data {
-    //     uint32_t length1;
-    //     uint8_t *data1;
-    //     uint32_t offset2;
-    //     uint32_t length2;
-    //     uint8_t *data2;
-
-    //     // destructor
-    //     ~bl_data(void) {
-    //         delete[] data1;
-    //         delete[] data2;
-    //     }
-    // };
-
-    // static struct bl_data *read_bootloader(void);
-
+#ifdef HAL_BOOTLOADER_BUILD
+    #if AP_ADD_CHECKSUMS_ENABLED 
+    uint32_t verify_checksums(void);
+    #endif
 #endif
