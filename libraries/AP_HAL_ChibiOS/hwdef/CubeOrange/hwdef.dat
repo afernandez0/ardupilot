@@ -12,5 +12,8 @@ env BUILD_ABIN True
 define AP_ADD_CHECKSUMS_ENABLED      1
 
 # Root folder 'build/board_name'
+env AP_FIRMWARE_CHECKSUM_KEY         firmware.chksum
 env AP_FIRMWARE_CHECKSUM_FILE        bin/arducopter.chksum
+
+env AP_PARAMETERS_CHECKSUM_KEY       defaults.chksum
 env AP_PARAMETERS_CHECKSUM_FILE      processed_defaults.chksum

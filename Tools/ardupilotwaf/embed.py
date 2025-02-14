@@ -120,7 +120,7 @@ def create_embedded_h(filename, files, uncompressed=False, list_files=False):
 
         if list_files:
             # Write the file to the list of files for a further processing
-            list_files_file.write(f"f{name} f{filename}") 
+            list_files_file.write(f"{name} {filename}") 
             list_files_file.write("\n") 
 
         try:
@@ -137,7 +137,7 @@ def create_embedded_h(filename, files, uncompressed=False, list_files=False):
             ustr = ' (uncompressed)'
         else:
             ustr = ''
-        print("Embedding file %s:%s%s" % (name, filename, ustr))
+        print("**** Embedding file %s:%s%s" % (name, filename, ustr))
         write_encode(out, '{ "%s", sizeof(ap_romfs_%u), 0x%08x, ap_romfs_%u },\n' % (name, i, crc[filename], i))
     write_encode(out, '};\n')
     out.close()

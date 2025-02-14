@@ -4,15 +4,21 @@ sign an ArduPilot APJ firmware with a private key
 '''
 
 import binascii
+import shutil
 import sys
 import os
 import struct
 import json, base64, zlib
+from pathlib import Path
 
 sys.path.append("modules/waf")
 sys.path.append("modules/waf/waflib")
 
+sys.path.append("Tools/ardupilotwaf/")
+
 from waflib import Logs
+
+import embed
 
 Logs.init_log()
 
@@ -64,15 +70,75 @@ def save_checksum(in_filename: str, in_checksum: any):
     with open(new_name, "wb") as nf:
         # nf.write( bytes.fromhex(line_parts[0]) )
         nf.write(in_checksum.digest())
+
+"""Update a file in the RomFS"""
+def update_checksums_romfs(in_listfiles_filename: str, in_romfs_filename: str, in_key: str, in_new_filename: str):
+    Logs.info('')
+
+    Logs.info(f"Updating firmware signature in ROMFS: {in_romfs_filename}")
+    Logs.info(f"List of files file:                   {in_listfiles_filename}")
+    Logs.info(f"key  = {in_key}")
+    Logs.info(f"file = {in_new_filename}")
+
+    # Check files exist
+    path_to_list_romfs_files = Path(in_listfiles_filename)
+    if not path_to_list_romfs_files.is_file():
+        Logs.error("List of files file does not exist")
+        return
+
+    path_to_romfs = Path(in_romfs_filename)
+    if not path_to_romfs.is_file():
+        Logs.error("RomFS file does not exist")
+        return
+
+    # Make a copy of the file 
+    header_file = in_romfs_filename
+    copy_header_file = header_file.replace(".", "_") + ".txt"
+
+    print("*** Creating backup of: ", header_file)
+    shutil.copy(header_file, copy_header_file)
+
+    # Read current list of files and replace the firmware checksum
+    list_files = []
+    with open(in_listfiles_filename, "r") as rom_files:
+        for a_file in rom_files.readlines():
+            # print(a_file.strip())
+            (filename, file_path) = a_file.strip().split(" ")
+
+            if filename == in_key:
+                list_files += [(in_key, in_new_filename)]
+            else:
+                list_files += [(filename, file_path)]
+
+
+    # Update the list of files
+    with open(in_listfiles_filename, "w") as rom_files:
+        for (name, filename) in list_files:
+            rom_files.write(f"{name} {filename}") 
+            rom_files.write("\n") 
+
+    # process all files with embed
+    # Compressed files by default
+    if not embed.create_embedded_h(in_romfs_filename, list_files, False, False):
+        Logs.error("Failed to created ap_romfs_embedded.h")
+
         
 
 # =============================================================
 # =============================================================
 
-if len(sys.argv) != 3:
-    print("Usage: make_secure_fw.py   APJ_FILE   PRIVATE_KEYFILE")
+if len(sys.argv) != 7:
+    print("Usage: make_secure_fw.py   APJ_FILE   PRIVATE_KEYFILE   LIST_FILES   ROMFS_FILE   FILE_KEY    FILE_PATH")
     print(" ")
-    print("Key file must be generated with 'generate_keys.py' script")
+    print("Where: ")
+    print("  APJ_FILE. Filename and path of the firmware in APJ format")
+    print("  PRIVATE_KEY_FILE. Key file must be generated with 'generate_keys.py' script")
+    print("  LIST_FILES. Filename and path of the ile containing the list of files to be added to the RomFS. Absolute or relative path")
+    print("  ROMFS_FILE. Filename and path of the RomFS include file. Absolute or relative path")
+    print("  FILE_KEY. Key in the current ap_romfs_embedded.h file. Ie. processed_defaults.chksum")
+    print("  FILE_PATH. Absolute path and filename of the new file to be included in the RomFS")
+    print(" ")
+    # $ Tools/scripts/signing/make_secure_fw.py build/CubeOrange/bin/arducopter.apj  aa_private_key.dat romfs_files.txt build/CubeOrange/ap_romfs_embedded.h   bin/arducopter.chksum  build/CubeOrange/bin/arducopter_apj.chksum 
     sys.exit(1)
 
 
@@ -156,3 +222,7 @@ f.write(json.dumps(d, indent=4))
 f.close()
 
 Logs.info("APJ file updated: %s" % apj_file)
+
+update_checksums_romfs(sys.argv[3], sys.argv[4], sys.argv[5], sys.argv[6])
+
+Logs.info("ROM FS file updated: %s" % sys.argv[4])

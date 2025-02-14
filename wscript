@@ -851,7 +851,6 @@ def _build_post_funs(bld):
             bld.build_calculate_checksum()
 
             bld.add_checksums_romfs()           
-            # ajfg
         
         bld.build_summary_post_fun()
 
