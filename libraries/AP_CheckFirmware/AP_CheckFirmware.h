@@ -32,6 +32,7 @@ enum class check_fw_result_t : uint8_t {
     FAIL_REASON_WOLF_INIT_FAILED=19,
     FAIL_REASON_WOLF_ENCODE_SIGNATURE=20,
     FAIL_REASON_HASH_FAILED=21,
+    FAIL_REASON_CHECKSUM_NOT_FOUND=22,
 };
 
 #ifndef FW_MAJOR
@@ -154,19 +155,19 @@ public:
       data regions to cope with persistent data at the end of the
       bootloader sector
     */
-    // struct bl_data {
-    //     uint32_t length1;
-    //     uint8_t *data1;
-    //     uint32_t offset2;
-    //     uint32_t length2;
-    //     uint8_t *data2;
+    struct bl_data {
+        uint32_t length1;
+        uint8_t *data1;
+        uint32_t offset2;
+        uint32_t length2;
+        uint8_t *data2;
 
-    //     // destructor
-    //     ~bl_data(void) {
-    //         delete[] data1;
-    //         delete[] data2;
-    //     }
-    // };
+        // destructor
+        ~bl_data(void) {
+            delete[] data1;
+            delete[] data2;
+        }
+    };
     static struct bl_data *read_bootloader(void);
     static bool write_bootloader(const struct bl_data *bld);
     static bool set_public_keys(uint8_t key_idx, uint8_t num_keys, const uint8_t *key_data);
@@ -181,36 +182,10 @@ private:
 
 #endif // HAL_BOOTLOADER_BUILD
 
+// ajfg
+int32_t verify_checksums(void);
+int32_t verify_checksum_firmware();
+int32_t verify_checksum_parameters();
+
 #endif // AP_CHECK_FIRMWARE_ENABLED
 
-// ajfg
-struct bl_data {
-        uint32_t length1;
-        uint8_t *data1;
-        uint32_t offset2;
-        uint32_t length2;
-        uint8_t *data2;
-
-        // destructor
-        ~bl_data(void) {
-            delete[] data1;
-            delete[] data2;
-        }
-    };
-struct bl_data *int_read_bootloader(void);
-
-// ajfg
-#ifdef HAL_BOOTLOADER_BUILD
-    #if AP_ADD_CHECKSUMS_ENABLED 
-
-        #include <AP_Common/ExpandingString.h>
-
-        int32_t verify_checksums(void);
-        int32_t verify_checksum_firmware();
-        int32_t verify_checksum_parameters();
-
-        bool int_get_persistent_param_by_name(const char *name, char* value, size_t& len);
-        bool int_load_persistent_params(ExpandingString &str);
-
-    #endif
-#endif

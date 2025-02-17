@@ -538,6 +538,10 @@ void Util::mem_info(ExpandingString &str)
 
 static const char *persistent_header = "{{PERSISTENT_START_V1}}\n";
 
+// ajfg
+static const char *firmware_checksum_key = "fiw=";
+static const char *parameters_checksum_key = "def=";
+
 /*
   create a set of persistent parameters in string form
  */
@@ -585,7 +589,7 @@ void Util::get_firmware_checksum(ExpandingString &str) const
     }
 
     // Store the checksum
-    str.append("fw=", 3);
+    str.append(firmware_checksum_key, sizeof(firmware_checksum_key));
     str.append(reinterpret_cast<const char *>(fw), fw_size);
     str.append("\n", 1);
     Debug("Firmware checksum correctly loaded");
@@ -607,7 +611,7 @@ void Util::get_parameters_checksum(ExpandingString &str) const
     }
 
     // Store the checksum
-    str.append("def=", 4);
+    str.append(parameters_checksum_key, sizeof(parameters_checksum_key));
     str.append(reinterpret_cast<const char *>(fw), fw_size);
     str.append("\n", 1);
     Debug("Parameters checksum correctly loaded");

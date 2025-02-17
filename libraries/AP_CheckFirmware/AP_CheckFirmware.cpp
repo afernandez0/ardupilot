@@ -308,7 +308,6 @@ check_fw_result_t check_good_firmware(void)
 
 
 
-
 #endif // HAL_BOOTLOADER_BUILD
 
 #if !defined(HAL_BOOTLOADER_BUILD)
@@ -345,7 +344,12 @@ void check_firmware_print(void)
 
 extern const AP_HAL::HAL &hal;
 
+// ajfg
 const char *persistent_header = "{{PERSISTENT_START_V1}}\n";
+
+const char *firmware_checksum_key = "fiw=";
+const char *parameters_checksum_key = "def=";
+
 /*
   Verify the checksum of the firmware and the persistent parameters
   If they do not match, boot will fail
@@ -364,7 +368,12 @@ int32_t verify_checksums(void)
 int32_t verify_checksum_firmware()
 {
     // Look for the Application Descriptor
+#if AP_SIGNED_FIRMWARE
     const uint8_t sig[8] = AP_APP_DESCRIPTOR_SIGNATURE_SIGNED;
+#else    
+    const uint8_t sig[8] = AP_APP_DESCRIPTOR_SIGNATURE_UNSIGNED;
+#endif
+
     const uint8_t *flash_address = (const uint8_t *)(FLASH_LOAD_ADDRESS + (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB)*1024);
     const uint32_t flash_size = (BOARD_FLASH_SIZE - (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB))*1024;
     const app_descriptor_signed *ad = (const app_descriptor_signed *)memmem(flash_address, flash_size-sizeof(app_descriptor_signed), sig, sizeof(sig));
@@ -374,18 +383,26 @@ int32_t verify_checksum_firmware()
         return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_NO_APP_SIG) * -1);
     }
 
+    /*
+    Alternative:
+    const uint32_t page_size = hal.flash->getpagesize(0);
+    const uint32_t flash_addr = hal.flash->getpageaddr(0);
+    const uint8_t *flash = (const uint8_t *)flash_addr;
+    const uint8_t key[] = AP_PUBLIC_KEY_SIGNATURE;
+    const struct ap_secure_data *kk = (const struct ap_secure_data *)memmem(flash, page_size, key, sizeof(key));
+    */
+
     // Check firmware size
     if (ad->image_size > flash_size) {
         return (static_cast<int>(check_fw_result_t::FAIL_REASON_BAD_LENGTH_APP) * -1);
     }
 
     // Read Firmware checksum
-    unsigned char firmware_checksum[WC_SHA256_DIGEST_SIZE];
-    size_t firmware_length = WC_SHA256_DIGEST_SIZE;
+    uint8_t *firmware_checksum = (uint8_t *) memmem(ad, flash_size, 
+                                  firmware_checksum_key, sizeof(firmware_checksum_key)+WC_SHA256_DIGEST_SIZE);
 
-    if ( ! int_get_persistent_param_by_name("fw", reinterpret_cast<char *>(&firmware_checksum), firmware_length) ) {
-        return 66;
-    }
+    // Skip the key name; fiw=
+    firmware_checksum += sizeof(firmware_checksum_key);
 
     // Calculate checksum sha256 of the firmware   
     int ret = -1;
@@ -399,7 +416,7 @@ int32_t verify_checksum_firmware()
     }
     
     // Calculate the checksum of the whole firmware
-    ret = wc_Sha256Update(&sha256, flash_address, flash_size);
+    ret = wc_Sha256Update(&sha256, flash_address, ad->image_size);
     if (ret != 0) {
         // TODO
         // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Error calculating Sha256");
@@ -418,7 +435,7 @@ int32_t verify_checksum_firmware()
     wc_Sha256Free(&sha256);
 
     // Compare checksums
-    if (memcmp(&firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
+    if (memcmp(firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
         // TODO
         // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum");
         return -6;
@@ -429,17 +446,30 @@ int32_t verify_checksum_firmware()
 
 int32_t verify_checksum_parameters()
 {
-    // Look for the address of the Persistent Parameters
-    unsigned char *params_address = nullptr;
-    size_t params_size = 0;
+    // Look for the Application Descriptor
+    const uint8_t *flash_address = (const uint8_t *)(FLASH_LOAD_ADDRESS + (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB)*1024);
+    const uint32_t flash_size = (BOARD_FLASH_SIZE - (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB))*1024;
 
-    // Read Firmware checksum
-    unsigned char params_checksum[WC_SHA256_DIGEST_SIZE];
-    size_t params_length = WC_SHA256_DIGEST_SIZE;
+    const unsigned char *parameters_address = (const unsigned char *)memmem(flash_address, flash_size-sizeof(app_descriptor_signed), persistent_header, sizeof(persistent_header));
 
-    if ( ! int_get_persistent_param_by_name("def", reinterpret_cast<char *>(params_checksum), params_length) ) {
-        return 66;
+    if (parameters_address == nullptr) {
+        // no application signature
+        return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND) * -1);
     }
+
+    // Skip the header
+    parameters_address += sizeof(persistent_header);
+
+
+    // Read Parameters checksum
+    uint8_t *parameters_checksum = (uint8_t *) memmem(parameters_address, flash_size, 
+                                   parameters_checksum_key, sizeof(parameters_checksum_key) + WC_SHA256_DIGEST_SIZE);
+
+    // Calculate the size based on the two pointers
+    uint32_t parameters_size = parameters_checksum - parameters_address;
+
+    // Skip the key name; def=
+    parameters_checksum += sizeof(parameters_checksum_key);
 
     // Calculate checksum sha256 of the firmware   
     int ret = -1;
@@ -453,7 +483,7 @@ int32_t verify_checksum_parameters()
     }
 
     // Calculate the checksum of the whole firmware
-    ret = wc_Sha256Update(&sha256, params_address, params_size);
+    ret = wc_Sha256Update(&sha256, parameters_address, parameters_size);
     if (ret != 0) {
         // TODO
         // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Error calculating Sha256");
@@ -472,106 +502,13 @@ int32_t verify_checksum_parameters()
     wc_Sha256Free(&sha256);
 
     // Compare checksums
-    if (memcmp(&params_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
+    if (memcmp(parameters_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
         // TODO
         // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum");
         return -6;
     }
 
     return 0;
-}
-
-
-// unsigned char *read_parameter(const char *in_name, const usize_t in_size)
-// {
-// // Read and create a new structure
-// bl_data *bloader_data = int_read_bootloader();
-
-// if (bloader_data == nullptr) {
-//     // TODO
-//     // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Failed to find the bootloader in the memory");
-//     return -1;
-// }
-
-// uint32_t bootloader_size = bloader_data->length1 + bloader_data->offset + bloader_data->length2;
-// unsigned char *firmware_checksum = (struct ap_secure_data *) memmem(bloader_data->data1, bootloader_size, "fw=", 3);
-// if (sec_data == nullptr) {
-//     delete bloader_data;
-
-//     // TODO
-//     // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Failed to find firmware checksum");
-//     return -2;
-// };
-
-// const uint32_t addr = hal.flash->getpageaddr(0);
-
-// // Get parameters checksum from Persistent Parameters
-// char parameters_checksum[WC_SHA256_DIGEST_SIZE];
-// size_t  checksum_len = WC_SHA256_DIGEST_SIZE;
-
-// if (! hal.util->get_persistent_param_by_name("def=", parameters_checksum, checksum_len)) {
-//     // TODO
-//     // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Failed to find parameters checksum");
-//     return -1;
-// }
-
-// if (checksum_len != WC_SHA256_DIGEST_SIZE) {
-//     // TODO
-//     // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum length");
-//     return -3;
-// }
-
-//}
-
-/*
-  Copy 
-  get a persistent variable by name,
-  len is the length of the value buffer, and is updated with the length of the value
- */
-bool int_get_persistent_param_by_name(const char *name, char* value, size_t& len)
-{
-    ExpandingString persistent_params {};
-
-    if (!int_load_persistent_params(persistent_params)) {
-        return false;
-    }
-    char *s = persistent_params.get_writeable_string();
-    if (s == nullptr) {
-        return false;
-    }
-    char *saveptr;
-    s += strlen(persistent_header);
-    for (char *p = strtok_r(s, "\n", &saveptr);
-         p; p = strtok_r(nullptr, "\n", &saveptr)) {
-        char *eq = strchr(p, int('='));
-        if (eq) {
-            *eq = 0;
-            if (strcmp(p, name) == 0) {
-                // also get the length of the value
-                strncpy(value, eq+1, len);
-                len = strlen(value);
-                return true;
-            }
-        }
-    }
-    return false;
-}
-
-/*
-  load a set of persistent parameters in string form from the bootloader sector
- */
-bool int_load_persistent_params(ExpandingString &str)
-{
-    const uint32_t addr = hal.flash->getpageaddr(0);
-    const uint32_t size = hal.flash->getpagesize(0);
-    const char *s = (const char *)memmem((void*)addr, size,
-                                         persistent_header,
-                                         strlen(persistent_header));
-    if (s) {
-        str.append(s, (addr+size) - uint32_t(s));
-        return !str.has_failed_allocation();
-    }
-    return false;
 }
 
 #endif  // AP_ADD_CHECKSUMS_ENABLED 

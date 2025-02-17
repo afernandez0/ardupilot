@@ -289,8 +289,6 @@ class set_app_descriptor(Task.Task):
         return "app_descriptor"
     def run(self):
         if self.generator.bld.env.AP_SIGNED_FIRMWARE:
-            # ajfg
-            # TODO: should this descriptor be updated for RSA 2048 ??
             descriptor = b'\x41\xa3\xe5\xf2\x65\x69\x92\x07'
         else:
             descriptor = b'\x40\xa2\xe4\xf1\x64\x68\x91\x06'
