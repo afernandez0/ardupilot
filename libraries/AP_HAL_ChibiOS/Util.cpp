@@ -585,7 +585,9 @@ void Util::get_firmware_checksum(ExpandingString &str) const
     }
 
     // Store the checksum
+    str.append("fw=", 3);
     str.append(reinterpret_cast<const char *>(fw), fw_size);
+    str.append("\n", 1);
     Debug("Firmware checksum correctly loaded");
 }
 
@@ -605,7 +607,9 @@ void Util::get_parameters_checksum(ExpandingString &str) const
     }
 
     // Store the checksum
+    str.append("def=", 4);
     str.append(reinterpret_cast<const char *>(fw), fw_size);
+    str.append("\n", 1);
     Debug("Parameters checksum correctly loaded");
 }
 #endif

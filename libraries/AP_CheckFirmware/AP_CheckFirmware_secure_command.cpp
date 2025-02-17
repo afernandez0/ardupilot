@@ -55,15 +55,16 @@ bool AP_CheckFirmware::all_zero_keys(const struct ap_secure_data *sec_data)
 /*
   return true if 1k of data is all 0xff (empty flash)
  */
-static bool empty_1k(const uint8_t *data)
-{
-    for (uint32_t i=0; i<1024; i++) {
-        if (data[i] != 0xFFU) {
-            return false;
-        }
-    }
-    return true;
-}
+// ajfg
+// static bool empty_1k(const uint8_t *data)
+// {
+//     for (uint32_t i=0; i<1024; i++) {
+//         if (data[i] != 0xFFU) {
+//             return false;
+//         }
+//     }
+//     return true;
+// }
 #endif
 
 /*
@@ -76,59 +77,7 @@ static bool empty_1k(const uint8_t *data)
  */
 AP_CheckFirmware::bl_data *AP_CheckFirmware::read_bootloader(void)
 {
-#if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-    struct bl_data *bld = new bl_data;
-    if (bld == nullptr) {
-        return nullptr;
-    }
-    const uint32_t page_size = hal.flash->getpagesize(0);
-    const uint32_t flash_addr = hal.flash->getpageaddr(0);
-    const uint8_t *flash = (uint8_t *)flash_addr;
-    const uint16_t block_size = 1024;
-    uint16_t num_blocks = page_size / block_size;
-    /*
-      find first empty block
-     */
-    for (uint16_t i=0; i<num_blocks; i++) {
-        if (empty_1k(&flash[block_size*i])) {
-            break;
-        }
-        bld->length1 += block_size;
-    }
-    bld->data1 = new uint8_t[bld->length1];
-    if (bld->data1 == nullptr) {
-        delete bld;
-        return nullptr;
-    }
-    memcpy(bld->data1, flash, bld->length1);
-    flash += bld->length1;
-    num_blocks -= bld->length1 / block_size;
-
-    /*
-      find first non-empty block, which should be the persistent data if-any
-     */
-    bld->offset2 = bld->length1;
-    while (num_blocks > 0) {
-        if (!empty_1k(&flash[bld->offset2])) {
-            break;
-        }
-        num_blocks--;
-        bld->offset2 += block_size;
-    }
-    if (num_blocks > 0) {
-        // we have persistent data to save
-        bld->length2 = num_blocks * block_size;
-        bld->data2 = new uint8_t[bld->length2];
-        if (bld->data2 == nullptr) {
-            delete bld;
-            return nullptr;
-        }
-        memcpy(bld->data2, &flash[bld->offset2], bld->length2);
-    }
-    return bld;
-#else
-    return nullptr;
-#endif
+    return int_read_bootloader();
 }
 
 #if HAL_GCS_ENABLED
@@ -429,88 +378,76 @@ bool AP_CheckFirmware::check_signed_bootloader(const uint8_t *fw, uint32_t fw_si
 
 
 // // ajfg
-// #if AP_ADD_CHECKSUMS_ENABLED 
+#if AP_ADD_CHECKSUMS_ENABLED 
 
-// extern const AP_HAL::HAL &hal;
+// ajfg
+extern const AP_HAL::HAL &hal;
 
-// #if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-// /*
-//   return true if 1k of data is all 0xff (empty flash)
-//  */
-// static bool empty_1k(const uint8_t *data)
-// {
-//     for (uint32_t i=0; i<1024; i++) {
-//         if (data[i] != 0xFFU) {
-//             return false;
-//         }
-//     }
-//     return true;
-// }
-// #endif
+static bool empty_1k(const uint8_t *data)
+{
+    for (uint32_t i=0; i<1024; i++) {
+        if (data[i] != 0xFFU) {
+            return false;
+        }
+    }
+    return true;
+}
 
-// /*
-//   read bootloader into memory. This is complicated by the potential presence
-//   of persistent data from temperature calibration at the end of the sector
+bl_data *int_read_bootloader(void)
+{
+#if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
+    struct bl_data *bld = new bl_data;
+    if (bld == nullptr) {
+        return nullptr;
+    }
+    const uint32_t page_size = hal.flash->getpagesize(0);
+    const uint32_t flash_addr = hal.flash->getpageaddr(0);
+    const uint8_t *flash = (uint8_t *)flash_addr;
+    const uint16_t block_size = 1024;
+    uint16_t num_blocks = page_size / block_size;
+    /*
+      find first empty block
+     */
+    for (uint16_t i=0; i<num_blocks; i++) {
+        if (empty_1k(&flash[block_size*i])) {
+            break;
+        }
+        bld->length1 += block_size;
+    }
+    bld->data1 = new uint8_t[bld->length1];
+    if (bld->data1 == nullptr) {
+        delete bld;
+        return nullptr;
+    }
+    memcpy(bld->data1, flash, bld->length1);
+    flash += bld->length1;
+    num_blocks -= bld->length1 / block_size;
 
-//   Also note this assumes the public keys are in the first sector if
-//   the bootloader covers more than one sector. This is a reasonable
-//   assumption given the linker file
-//  */
-// bl_data *read_bootloader(void)
-// {
-// #if CONFIG_HAL_BOARD == HAL_BOARD_CHIBIOS
-//     struct bl_data *bld = new bl_data;
-//     if (bld == nullptr) {
-//         return nullptr;
-//     }
-//     const uint32_t page_size = hal.flash->getpagesize(0);
-//     const uint32_t flash_addr = hal.flash->getpageaddr(0);
-//     const uint8_t *flash = (uint8_t *)flash_addr;
-//     const uint16_t block_size = 1024;
-//     uint16_t num_blocks = page_size / block_size;
-//     /*
-//       find first empty block
-//      */
-//     for (uint16_t i=0; i<num_blocks; i++) {
-//         if (empty_1k(&flash[block_size*i])) {
-//             break;
-//         }
-//         bld->length1 += block_size;
-//     }
-//     bld->data1 = new uint8_t[bld->length1];
-//     if (bld->data1 == nullptr) {
-//         delete bld;
-//         return nullptr;
-//     }
-//     memcpy(bld->data1, flash, bld->length1);
-//     flash += bld->length1;
-//     num_blocks -= bld->length1 / block_size;
+    /*
+      find first non-empty block, which should be the persistent data if-any
+     */
+    bld->offset2 = bld->length1;
+    while (num_blocks > 0) {
+        if (!empty_1k(&flash[bld->offset2])) {
+            break;
+        }
+        num_blocks--;
+        bld->offset2 += block_size;
+    }
+    if (num_blocks > 0) {
+        // we have persistent data to save
+        bld->length2 = num_blocks * block_size;
+        bld->data2 = new uint8_t[bld->length2];
+        if (bld->data2 == nullptr) {
+            delete bld;
+            return nullptr;
+        }
+        memcpy(bld->data2, &flash[bld->offset2], bld->length2);
+    }
+    return bld;
+#else
+    return nullptr;
+#endif
+}
 
-//     /*
-//       find first non-empty block, which should be the persistent data if-any
-//      */
-//     bld->offset2 = bld->length1;
-//     while (num_blocks > 0) {
-//         if (!empty_1k(&flash[bld->offset2])) {
-//             break;
-//         }
-//         num_blocks--;
-//         bld->offset2 += block_size;
-//     }
-//     if (num_blocks > 0) {
-//         // we have persistent data to save
-//         bld->length2 = num_blocks * block_size;
-//         bld->data2 = new uint8_t[bld->length2];
-//         if (bld->data2 == nullptr) {
-//             delete bld;
-//             return nullptr;
-//         }
-//         memcpy(bld->data2, &flash[bld->offset2], bld->length2);
-//     }
-//     return bld;
-// #else
-//     return nullptr;
-// #endif
-// }
-
-// #endif // AP_ADD_CHECKSUMS_ENABLED 
+#endif // AP_ADD_CHECKSUMS_ENABLED 
