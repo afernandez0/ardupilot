@@ -187,5 +187,9 @@ int32_t verify_checksums(void);
 int32_t verify_checksum_firmware();
 int32_t verify_checksum_parameters();
 
+// ajfg
+int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigned char *out_buffer);
+
+
 #endif // AP_CHECK_FIRMWARE_ENABLED
 

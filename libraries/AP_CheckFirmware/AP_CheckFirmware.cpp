@@ -5,6 +5,9 @@
 #include <AP_HAL/HAL.h>
 #include <AP_Math/crc.h>
 
+
+#if AP_CHECK_FIRMWARE_ENABLED
+
 // ajfg
 #if defined(HAL_BOOTLOADER_BUILD)
 
@@ -15,11 +18,7 @@
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
-#endif
 
-#if AP_CHECK_FIRMWARE_ENABLED
-
-#if defined(HAL_BOOTLOADER_BUILD)
 
 #if AP_SIGNED_FIRMWARE
 #include "../../Tools/AP_Bootloader/support.h"
@@ -405,34 +404,9 @@ int32_t verify_checksum_firmware()
     firmware_checksum += sizeof(firmware_checksum_key);
 
     // Calculate checksum sha256 of the firmware   
-    int ret = -1;
-    wc_Sha256 sha256;
-    
-    ret = wc_InitSha256(&sha256);
-    if (ret != 0) {
-        // TODO
-        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Unable to initialize SHA256");
-        return -3;
-    }
-    
-    // Calculate the checksum of the whole firmware
-    ret = wc_Sha256Update(&sha256, flash_address, ad->image_size);
-    if (ret != 0) {
-        // TODO
-        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Error calculating Sha256");
-        return -4;
-    }
-
     unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
 
-    ret = wc_Sha256Final(&sha256, calculated_hash);
-    if (ret != 0) {
-        // TODO
-        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Error calculating Sha256");
-        return -5;
-    }
-        
-    wc_Sha256Free(&sha256);
+    calculate_hash(flash_address, ad->image_size, calculated_hash);
 
     // Compare checksums
     if (memcmp(firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
@@ -460,7 +434,6 @@ int32_t verify_checksum_parameters()
     // Skip the header
     parameters_address += sizeof(persistent_header);
 
-
     // Read Parameters checksum
     uint8_t *parameters_checksum = (uint8_t *) memmem(parameters_address, flash_size, 
                                    parameters_checksum_key, sizeof(parameters_checksum_key) + WC_SHA256_DIGEST_SIZE);
@@ -471,6 +444,23 @@ int32_t verify_checksum_parameters()
     // Skip the key name; def=
     parameters_checksum += sizeof(parameters_checksum_key);
 
+    // Calculate checksum sha256 of the firmware   
+    unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
+
+    calculate_hash(parameters_address, parameters_size, calculated_hash);
+
+    // Compare checksums
+    if (memcmp(parameters_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
+        // TODO
+        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum");
+        return -6;
+    }
+
+    return 0;
+}
+
+int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigned char *out_buffer)
+{
     // Calculate checksum sha256 of the firmware   
     int ret = -1;
     wc_Sha256 sha256;
@@ -483,16 +473,16 @@ int32_t verify_checksum_parameters()
     }
 
     // Calculate the checksum of the whole firmware
-    ret = wc_Sha256Update(&sha256, parameters_address, parameters_size);
+    ret = wc_Sha256Update(&sha256, in_buffer, in_size);
     if (ret != 0) {
         // TODO
         // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Error calculating Sha256");
         return -4;
     }
 
-    unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
+    // unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
 
-    ret = wc_Sha256Final(&sha256, calculated_hash);
+    ret = wc_Sha256Final(&sha256, out_buffer);
     if (ret != 0) {
         // TODO
         // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Error calculating Sha256");
@@ -501,15 +491,9 @@ int32_t verify_checksum_parameters()
         
     wc_Sha256Free(&sha256);
 
-    // Compare checksums
-    if (memcmp(parameters_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
-        // TODO
-        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum");
-        return -6;
-    }
-
     return 0;
 }
+
 
 #endif  // AP_ADD_CHECKSUMS_ENABLED 
 
