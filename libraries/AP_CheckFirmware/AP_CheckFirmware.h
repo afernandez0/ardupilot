@@ -15,6 +15,25 @@
 #define AP_CHECK_FIRMWARE_ENABLED AP_OPENDRONEID_ENABLED
 #endif
 
+// ajfg
+#include <wolfssl/options.h>
+#include <wolfssl/wolfcrypt/settings.h>
+
+#include <wolfssl/wolfcrypt/rsa.h>
+#include <wolfssl/wolfcrypt/sha256.h>
+#include <wolfssl/wolfcrypt/asn.h>
+#include <wolfssl/wolfcrypt/asn_public.h>
+
+// ajfg
+int32_t verify_checksums(void);
+int32_t verify_checksum_firmware();
+int32_t verify_checksum_parameters();
+
+int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigned char *out_buffer);
+
+uint8_t *find_firmware(uint32_t &out_image_size);
+
+
 #if AP_CHECK_FIRMWARE_ENABLED
 
 enum class check_fw_result_t : uint8_t {
@@ -181,15 +200,6 @@ private:
 };
 
 #endif // HAL_BOOTLOADER_BUILD
-
-// ajfg
-int32_t verify_checksums(void);
-int32_t verify_checksum_firmware();
-int32_t verify_checksum_parameters();
-
-// ajfg
-int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigned char *out_buffer);
-
 
 #endif // AP_CHECK_FIRMWARE_ENABLED
 

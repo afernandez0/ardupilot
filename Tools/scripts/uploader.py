@@ -237,6 +237,10 @@ class uploader(object):
 
     CHIP_FULL_ERASE = b'\x40'     # full erase of flash
 
+    # ajfg. New version 6
+    VERIFY_CHECKSUM = b'\x41'     # Verify the checksum
+    UPDATE_CHECKSUM = b'\x42'     # Update the checksum in the RomFS
+
     INFO_BL_REV     = b'\x01'        # bootloader protocol revision
     BL_REV_MIN      = 2              # minimum supported bootloader protocol
     BL_REV_MAX      = 5              # maximum supported bootloader protocol

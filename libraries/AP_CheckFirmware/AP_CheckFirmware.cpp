@@ -8,17 +8,8 @@
 
 #if AP_CHECK_FIRMWARE_ENABLED
 
-// ajfg
+
 #if defined(HAL_BOOTLOADER_BUILD)
-
-#include <wolfssl/options.h>
-#include <wolfssl/wolfcrypt/settings.h>
-
-#include <wolfssl/wolfcrypt/rsa.h>
-#include <wolfssl/wolfcrypt/sha256.h>
-#include <wolfssl/wolfcrypt/asn.h>
-#include <wolfssl/wolfcrypt/asn_public.h>
-
 
 #if AP_SIGNED_FIRMWARE
 #include "../../Tools/AP_Bootloader/support.h"
@@ -366,47 +357,19 @@ int32_t verify_checksums(void)
 
 int32_t verify_checksum_firmware()
 {
-    // Look for the Application Descriptor
-#if AP_SIGNED_FIRMWARE
-    const uint8_t sig[8] = AP_APP_DESCRIPTOR_SIGNATURE_SIGNED;
-#else    
-    const uint8_t sig[8] = AP_APP_DESCRIPTOR_SIGNATURE_UNSIGNED;
-#endif
-
     const uint8_t *flash_address = (const uint8_t *)(FLASH_LOAD_ADDRESS + (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB)*1024);
-    const uint32_t flash_size = (BOARD_FLASH_SIZE - (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB))*1024;
-    const app_descriptor_signed *ad = (const app_descriptor_signed *)memmem(flash_address, flash_size-sizeof(app_descriptor_signed), sig, sizeof(sig));
+    
+    uint32_t image_size = 0;
+    uint8_t *firmware_checksum = find_firmware(image_size);
 
-    if (ad == nullptr) {
-        // no application signature
+    if (firmware_checksum == nullptr) {
         return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_NO_APP_SIG) * -1);
     }
-
-    /*
-    Alternative:
-    const uint32_t page_size = hal.flash->getpagesize(0);
-    const uint32_t flash_addr = hal.flash->getpageaddr(0);
-    const uint8_t *flash = (const uint8_t *)flash_addr;
-    const uint8_t key[] = AP_PUBLIC_KEY_SIGNATURE;
-    const struct ap_secure_data *kk = (const struct ap_secure_data *)memmem(flash, page_size, key, sizeof(key));
-    */
-
-    // Check firmware size
-    if (ad->image_size > flash_size) {
-        return (static_cast<int>(check_fw_result_t::FAIL_REASON_BAD_LENGTH_APP) * -1);
-    }
-
-    // Read Firmware checksum
-    uint8_t *firmware_checksum = (uint8_t *) memmem(ad, flash_size, 
-                                  firmware_checksum_key, sizeof(firmware_checksum_key)+WC_SHA256_DIGEST_SIZE);
-
-    // Skip the key name; fiw=
-    firmware_checksum += sizeof(firmware_checksum_key);
 
     // Calculate checksum sha256 of the firmware   
     unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
 
-    calculate_hash(flash_address, ad->image_size, calculated_hash);
+    calculate_hash(flash_address, image_size, calculated_hash);
 
     // Compare checksums
     if (memcmp(firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
@@ -494,6 +457,51 @@ int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigne
     return 0;
 }
 
+uint8_t *find_firmware(uint32_t &out_image_size)
+{
+    // Look for the Application Descriptor
+#if AP_SIGNED_FIRMWARE
+    const uint8_t sig[8] = AP_APP_DESCRIPTOR_SIGNATURE_SIGNED;
+#else    
+    const uint8_t sig[8] = AP_APP_DESCRIPTOR_SIGNATURE_UNSIGNED;
+#endif
+
+    const uint8_t *flash_address = (const uint8_t *)(FLASH_LOAD_ADDRESS + (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB)*1024);
+    const uint32_t flash_size = (BOARD_FLASH_SIZE - (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB))*1024;
+    const app_descriptor_signed *ad = (const app_descriptor_signed *)memmem(flash_address, flash_size-sizeof(app_descriptor_signed), sig, sizeof(sig));
+
+    if (ad == nullptr) {
+        // no application signature
+        // return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_NO_APP_SIG) * -1);
+        return nullptr;
+    }
+
+    /*
+    Alternative:
+    const uint32_t page_size = hal.flash->getpagesize(0);
+    const uint32_t flash_addr = hal.flash->getpageaddr(0);
+    const uint8_t *flash = (const uint8_t *)flash_addr;
+    const uint8_t key[] = AP_PUBLIC_KEY_SIGNATURE;
+    const struct ap_secure_data *kk = (const struct ap_secure_data *)memmem(flash, page_size, key, sizeof(key));
+    */
+
+    // Check firmware size
+    if (ad->image_size > flash_size) {
+        // return (static_cast<int>(check_fw_result_t::FAIL_REASON_BAD_LENGTH_APP) * -1);
+        return nullptr;
+    }
+
+    // Read Firmware checksum
+    uint8_t *firmware_checksum = (uint8_t *) memmem(ad, flash_size, 
+                                firmware_checksum_key, sizeof(firmware_checksum_key)+WC_SHA256_DIGEST_SIZE);
+
+    // Skip the key name; fiw=
+    firmware_checksum += sizeof(firmware_checksum_key);
+
+    out_image_size = ad->image_size;
+
+    return firmware_checksum;
+}
 
 #endif  // AP_ADD_CHECKSUMS_ENABLED 
 

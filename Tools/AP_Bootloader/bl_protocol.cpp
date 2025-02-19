@@ -55,6 +55,7 @@
 #endif
 #include <AP_CheckFirmware/AP_CheckFirmware.h>
 
+
 // #pragma GCC optimize("O0")
 
 
@@ -80,10 +81,16 @@
 // loop:
 //      PROG_MULTI      program bytes
 // GET_CRC		verify CRC of entire flashable area
+// ajfg. V6
+// VERIFY_CHECKSUM   Calculate the checksum (SHA256) of the new Firmware
+//                   Compare with the input parameter
 // RESET		finalise flash programming, reset chip and starts application
 //
 
-#define BL_PROTOCOL_VERSION 		5		// The revision of the bootloader protocol
+// ajfg
+// Next version. Verify checksum
+#define BL_PROTOCOL_VERSION 		6		// The revision of the bootloader protocol
+
 // protocol bytes
 #define PROTO_INSYNC				0x12    // 'in sync' byte sent before status
 #define PROTO_EOC					0x20    // end of command
@@ -116,10 +123,14 @@
 #define PROTO_EXTF_READ_MULTI       0x36    // read bytes at address and increment
 #define PROTO_EXTF_GET_CRC          0x37	// compute & return a CRC of data in external flash
 
-#define PROTO_CHIP_FULL_ERASE   0x40    // erase program area and reset program address, skip any flash wear optimization and force an erase
+#define PROTO_CHIP_FULL_ERASE       0x40    // erase program area and reset program address, skip any flash wear optimization and force an erase
 
-#define PROTO_PROG_MULTI_MAX    64	// maximum PROG_MULTI size
-#define PROTO_READ_MULTI_MAX    255	// size of the size field
+// ajfg
+#define PROTO_VERIFY_CHECKSUM		0x41    // Verify the checksum
+#define PROTO_UPDATE_CHECKSUM		0x42    // Update the checksum in the RomFS
+
+#define PROTO_PROG_MULTI_MAX        64      // maximum PROG_MULTI size
+#define PROTO_READ_MULTI_MAX        255	    // size of the size field
 
 /* argument values for PROTO_GET_DEVICE */
 #define PROTO_DEVICE_BL_REV	1	// bootloader revision
@@ -473,6 +484,13 @@ bootloader(unsigned timeout)
     bool done_erase = false;
     static bool done_timer_init;
     unsigned original_timeout = timeout;
+
+    // ajfg. Size of the firmware image size
+    uint32_t    firmware_size = 0; 
+    // Calculate checksum sha256 of the firmware
+    unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
+
+    memset(calculated_hash, 0, WC_SHA256_DIGEST_SIZE);
 
     memset(first_words, 0xFF, sizeof(first_words));
 
@@ -874,6 +892,9 @@ bootloader(unsigned timeout)
                 goto cmd_bad;
             }
 
+            // Update the size in bytes
+            firmware_size += arg;
+
             // save the first words and don't program it until everything else is done
 #if !BOOT_FROM_EXT_FLASH
             if (address < sizeof(first_words)) {
@@ -1205,7 +1226,116 @@ bootloader(unsigned timeout)
             // returning the response...
             continue;
         }
+
+
+        // ajfg. V6
+        // Verify firmware checksum
+        //
+        // command:		VERIFY_CHECKSUM/<len:1>/<signature:len>/EOC
+        // success reply:	INSYNC/OK
+        // invalid reply:	INSYNC/INVALID
+        //
+        case PROTO_VERIFY_CHECKSUM: {
+            if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
+                // lower chance of random data on a uart triggering erase
+                goto cmd_bad;
+            }
+
+            // expect count
+            led_set(LED_OFF);
+
+            arg = cin(50);
+
+            if (arg < 0) {
+                goto cmd_bad;
+            }
+
+            // sanity-check arguments. Aligned to 4 bytes 
+            if (arg % 4) {
+                goto cmd_bad;
+            }
+
+            // arg = len
+            int  checksum_len = arg;
+
+            if (checksum_len != WC_SHA256_DIGEST_SIZE) {
+                goto cmd_bad;
+            }
+           
+            // Read the checksum
+            for (int i = 0; i < arg; i++) {
+                c = cin(1000);
+
+                if (c < 0) {
+                    goto cmd_bad;
+                }
+
+                // uint8_t
+                flash_buffer.c[i] = c;
+            }
+
+            if (!wait_for_eoc(200)) {
+                goto cmd_bad;
+            }
+
+            const uint8_t *firmware_address = (const uint8_t *)(APP_START_ADDRESS);
+
+            if (calculate_hash(firmware_address, firmware_size, calculated_hash) != 0) {
+                goto cmd_fail;
+            }
+
+            // Compare checksums
+            if (memcmp(flash_buffer.c, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
+                // TODO
+                // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum");
+                goto cmd_fail;
+            }
+
+            break;
+        }
+
+        // ajfg. V6
+        // Update firmware checksum
+        //
+        // command:		UPDATE_CHECKSUM/EOC
+        // success reply:	INSYNC/OK
+        // invalid reply:	INSYNC/INVALID
+        //
+        case PROTO_UPDATE_CHECKSUM: {
+            if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
+                // lower chance of random data on a uart triggering erase
+                goto cmd_bad;
+            }
+
+            if (!wait_for_eoc(200)) {
+                goto cmd_bad;
+            }
+
+            bool have_checksum = false;
+            for(int i = 0; i < WC_SHA256_DIGEST_SIZE; ++ i) {
+                if (calculated_hash[i] != 0) {
+                    have_checksum = true;
+                    break;
+                }
+            }
+
+            if (! have_checksum) {
+                goto cmd_fail;
+            }
+
+            // Update checksum in the RomFS
+            uint32_t image_size = 0;
+            uint8_t *firmware_checksum = find_firmware(image_size);
+        
+            if (firmware_checksum == nullptr) {
+                goto cmd_fail;
+            }
             
+            memcpy(firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE);
+            break;
+        }
+
+
         default:
             continue;
         }
