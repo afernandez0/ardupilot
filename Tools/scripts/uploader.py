@@ -887,7 +887,7 @@ class uploader(object):
         return None
 
     # upload the firmware
-    def upload(self, fw, force=False, boot_delay=None):
+    def upload(self, fw, force=False, boot_delay=None, checksum_file = None):
         # Make sure we are doing the right thing
         if self.board_type != fw.property('board_id'):
             # ID mismatch: check compatibility
@@ -938,12 +938,59 @@ class uploader(object):
             else:
                 self.__verify_v3("Verify ", fw)
 
+        # Send Verify Checksum
+        if self.__verify_checksum(checksum_file) == True:
+            print("\nERROR: Checksums do not match. Checksums in the board has not been updated")
+
+        else:
+            self.__update_checksum()
+            print("\nChecksum updated correctly.\n")
+
         if boot_delay is not None:
             self.__set_boot_delay(boot_delay)
 
         print("\nRebooting.\n")
         self.__reboot()
         self.port.close()
+
+
+    def __verify_checksum(self, in_filename):
+        # Read the checksum from the file
+        checksum_buffer = None
+
+        try:
+            with open(in_filename, "rb") as checksum_file:
+                checksum_buffer = checksum_file.read()
+
+        except FileNotFoundError:
+            print("ERROR: Checksum file does not exist")
+            return False
+        
+        except IOError:
+            print("ERROR: Reading the checksum file")
+            return False
+        
+        if checksum_buffer is None:
+            return False
+
+        if runningPython3:
+            length = len(checksum_buffer).to_bytes(1, byteorder='big')
+        else:
+            length = chr(len(checksum_buffer))
+
+        self.__send(uploader.VERIFY_CHECKSUM)
+        self.__send(length)
+        self.__send(checksum_buffer)
+        self.__send(uploader.EOC)
+        self.__getSync()
+
+        return True
+
+
+    def __update_checksum(self):
+        self.__send(uploader.UPDATE_CHECKSUM)
+        self.__send(uploader.EOC)
+
 
     def __next_baud_flightstack(self):
         self.baudrate_flightstack_idx = self.baudrate_flightstack_idx + 1
@@ -1129,6 +1176,8 @@ def main():
                         help="Erase sectors containing specified amount of bytes from ext flash")
     parser.add_argument('--force-erase', action="store_true", help="Do not check for pre cleared flash, always erase the chip")
     parser.add_argument('firmware', nargs="?", action="store", default=None, help="Firmware file to be uploaded")
+    # ajfg
+    parser.add_argument('checksum', action='store', default=None, help='Firmware checksum filename')
     args = parser.parse_args()
 
     # warn people about ModemManager which interferes badly with Pixhawk
@@ -1191,7 +1240,9 @@ def main():
                         up.erase_extflash('Erase ExtF', args.erase_extflash)
                         print("\nExtF Erase Finished")
                     else:
-                        up.upload(fw, force=args.force, boot_delay=args.boot_delay)
+                        # ajfg. Add checksum parameter
+                        up.upload(fw, force=args.force, boot_delay=args.boot_delay,
+                                  checksum=args.checksum)
 
                 except RuntimeError as ex:
                     # print the error and exit as a failure
