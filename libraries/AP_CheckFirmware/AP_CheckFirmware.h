@@ -37,6 +37,8 @@ int32_t verify_checksum_parameters();
 int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigned char *out_buffer);
 
 uint8_t *find_firmware(uint32_t &out_image_size);
+uint8_t *find_parameters(uint32_t &out_image_size, unsigned char **out_parameters_address);
+
 #endif
 
 enum class check_fw_result_t : uint8_t {

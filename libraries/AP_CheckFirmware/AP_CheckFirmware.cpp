@@ -361,7 +361,7 @@ int32_t verify_checksum_firmware()
     uint8_t *firmware_checksum = find_firmware(image_size);
 
     if (firmware_checksum == nullptr) {
-        return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_NO_APP_SIG) * -1);
+        return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND) * -1);
     }
 
     // Calculate checksum sha256 of the firmware   
@@ -381,29 +381,14 @@ int32_t verify_checksum_firmware()
 
 int32_t verify_checksum_parameters()
 {
-    // Look for the Application Descriptor
-    const uint8_t *flash_address = (const uint8_t *)(FLASH_LOAD_ADDRESS + (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB)*1024);
-    const uint32_t flash_size = (BOARD_FLASH_SIZE - (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB))*1024;
+    unsigned char *parameters_address = nullptr;
 
-    const unsigned char *parameters_address = (const unsigned char *)memmem(flash_address, flash_size-sizeof(app_descriptor_signed), persistent_header, sizeof(persistent_header));
+    uint32_t parameters_size = 0;
+    uint8_t *parameters_checksum = find_parameters(parameters_size, &parameters_address);
 
-    if (parameters_address == nullptr) {
-        // no application signature
+    if (parameters_checksum == nullptr) {
         return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND) * -1);
     }
-
-    // Skip the header
-    parameters_address += sizeof(persistent_header);
-
-    // Read Parameters checksum
-    uint8_t *parameters_checksum = (uint8_t *) memmem(parameters_address, flash_size, 
-                                   parameters_checksum_key, sizeof(parameters_checksum_key) + WC_SHA256_DIGEST_SIZE);
-
-    // Calculate the size based on the two pointers
-    uint32_t parameters_size = parameters_checksum - parameters_address;
-
-    // Skip the key name; def=
-    parameters_checksum += sizeof(parameters_checksum_key);
 
     // Calculate checksum sha256 of the firmware   
     unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
@@ -499,6 +484,45 @@ uint8_t *find_firmware(uint32_t &out_image_size)
     out_image_size = ad->image_size;
 
     return firmware_checksum;
+}
+
+// It returns the address of the are where the Persistent parameters start
+// and the size of the area
+uint8_t *find_parameters(uint32_t &out_image_size, unsigned char **out_parameters_address)
+{
+    // Look for the Persistent Parameters
+    const uint8_t *flash_address = (const uint8_t *)(FLASH_LOAD_ADDRESS + (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB)*1024);
+    const uint32_t flash_size = (BOARD_FLASH_SIZE - (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB))*1024;
+
+    unsigned char *parameters_address = (unsigned char *)memmem(flash_address, flash_size, persistent_header, sizeof(persistent_header));
+
+    if (parameters_address == nullptr) {
+        // no application signature
+        // return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND) * -1);
+        return nullptr;
+    }
+
+    // Skip the header
+    parameters_address += sizeof(persistent_header);
+
+    // Read Parameters checksum
+    uint8_t *parameters_checksum = (uint8_t *) memmem(parameters_address, flash_size, 
+                                   parameters_checksum_key, sizeof(parameters_checksum_key) + WC_SHA256_DIGEST_SIZE);
+
+    // Read Firmware checksum
+    uint8_t *firmware_checksum = (uint8_t *) memmem(parameters_address, flash_size, 
+                                    firmware_checksum_key, sizeof(firmware_checksum_key)+WC_SHA256_DIGEST_SIZE);
+
+    // Calculate the size based on the two pointers
+    uint32_t parameters_size = firmware_checksum - parameters_address;
+
+    // Skip the key name; def=
+    parameters_checksum += sizeof(parameters_checksum_key);
+
+    *out_parameters_address = parameters_address;
+    out_image_size = parameters_size;
+
+    return parameters_checksum;
 }
 
 #endif // HAL_BOOTLOADER_BUILD

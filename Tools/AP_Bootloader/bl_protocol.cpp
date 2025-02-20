@@ -127,7 +127,9 @@
 
 // ajfg
 #define PROTO_VERIFY_CHECKSUM		0x41    // Verify the checksum
-#define PROTO_UPDATE_CHECKSUM		0x42    // Update the checksum in the RomFS
+#define PROTO_UPDATE_CHECKSUM		0x42    // Update the firmware checksum in the RomFS
+#define PROTO_UPDATE_PARAMS_CHECKSUM	0x43    // Update the parameters checksum in the RomFS
+
 
 #define PROTO_PROG_MULTI_MAX        64      // maximum PROG_MULTI size
 #define PROTO_READ_MULTI_MAX        255	    // size of the size field
@@ -1231,7 +1233,7 @@ bootloader(unsigned timeout)
         // ajfg. V6
         // Verify firmware checksum
         //
-        // command:		VERIFY_CHECKSUM/<len:1>/<signature:len>/EOC
+        // command:		    VERIFY_CHECKSUM/<len:1>/<signature:len>/EOC
         // success reply:	INSYNC/OK
         // invalid reply:	INSYNC/INVALID
         //
@@ -1296,8 +1298,9 @@ bootloader(unsigned timeout)
 
         // ajfg. V6
         // Update firmware checksum
+        // This command must be executed after VERIFY_CHECKSUM
         //
-        // command:		UPDATE_CHECKSUM/EOC
+        // command:		    UPDATE_CHECKSUM/EOC
         // success reply:	INSYNC/OK
         // invalid reply:	INSYNC/INVALID
         //
@@ -1331,10 +1334,76 @@ bootloader(unsigned timeout)
                 goto cmd_fail;
             }
             
+            // Update the checksum
             memcpy(firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE);
             break;
         }
 
+        // ajfg. V6
+        // Update parameters checksum
+        // It receives the new checksum and stores it
+        //
+        // command:		    UPDATE_PARAMS_CHECKSUM/<len:1>/<checksum:len>/EOC
+        // success reply:	INSYNC/OK
+        // invalid reply:	INSYNC/INVALID
+        //
+        case PROTO_UPDATE_PARAMS_CHECKSUM: {
+            if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
+                // lower chance of random data on a uart triggering erase
+                goto cmd_bad;
+            }
+
+            // expect count
+            led_set(LED_OFF);
+
+            arg = cin(50);
+
+            if (arg < 0) {
+                goto cmd_bad;
+            }
+
+            // sanity-check arguments. Aligned to 4 bytes 
+            if (arg % 4) {
+                goto cmd_bad;
+            }
+
+            // arg = len
+            int  checksum_len = arg;
+
+            if (checksum_len != WC_SHA256_DIGEST_SIZE) {
+                goto cmd_bad;
+            }
+           
+            // Read the checksum
+            for (int i = 0; i < arg; i++) {
+                c = cin(1000);
+
+                if (c < 0) {
+                    goto cmd_bad;
+                }
+
+                // uint8_t
+                flash_buffer.c[i] = c;
+            }
+
+            if (!wait_for_eoc(200)) {
+                goto cmd_bad;
+            }
+
+            // Update checksum in the RomFS   
+            unsigned char *parameters_address = nullptr;
+
+            uint32_t parameters_size = 0;
+            uint8_t *parameters_checksum = find_parameters(parameters_size, &parameters_address);
+
+            if (parameters_checksum == nullptr) {
+                goto cmd_fail;
+            }
+            
+            // Update the checksum
+            memcpy(parameters_checksum, flash_buffer.c, WC_SHA256_DIGEST_SIZE);
+            break;
+        }
 
         default:
             continue;
