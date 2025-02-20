@@ -94,8 +94,10 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
     }
     pSha256 = &sha;
 
+    // The hash is calculated of the two parts of the firmware
     wc_Sha256Update(&sha, flash1, len1);
     wc_Sha256Update(&sha, flash2, len2);
+
     ret = wc_Sha256Final(&sha, digest);
     if (ret != 0) {
         return check_fw_result_t::FAIL_REASON_WOLF_INIT_FAILED;
@@ -296,9 +298,8 @@ check_fw_result_t check_good_firmware(void)
 #endif
 }
 
-
-
 #endif // HAL_BOOTLOADER_BUILD
+
 
 #if !defined(HAL_BOOTLOADER_BUILD)
 extern const AP_HAL::HAL &hal;
@@ -324,13 +325,10 @@ void check_firmware_print(void)
 }
 #endif
 
-#endif // AP_CHECK_FIRMWARE_ENABLED
 
 
 // ajfg
 #if defined(HAL_BOOTLOADER_BUILD)
-
-#if AP_ADD_CHECKSUMS_ENABLED 
 
 extern const AP_HAL::HAL &hal;
 
@@ -503,6 +501,6 @@ uint8_t *find_firmware(uint32_t &out_image_size)
     return firmware_checksum;
 }
 
-#endif  // AP_ADD_CHECKSUMS_ENABLED 
+#endif // HAL_BOOTLOADER_BUILD
 
-#endif  // HAL_BOOTLOADER_BUILD
+#endif // AP_CHECK_FIRMWARE_ENABLED

@@ -137,7 +137,7 @@ private:
 #endif
 
 // ajfg
-#if AP_ADD_CHECKSUMS_ENABLED    
+#if AP_CHECK_FIRMWARE_ENABLED    
    void get_firmware_checksum(ExpandingString &str) const;
    void get_parameters_checksum(ExpandingString &str) const;
 #endif

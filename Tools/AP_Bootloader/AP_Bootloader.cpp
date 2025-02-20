@@ -104,7 +104,9 @@ int main(void)
 #endif
 
 // ajfg
-#if AP_ADD_CHECKSUMS_ENABLED 
+#if  AP_CHECK_FIRMWARE_ENABLED
+    // Verify the checksum (SHA256) of the firmware code and
+    // the default parameters
     const auto ok_cksum = verify_checksums();
     if (ok_cksum != 0) {
         // bad firmware, don't try and boot

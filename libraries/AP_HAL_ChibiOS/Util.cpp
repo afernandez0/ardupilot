@@ -371,7 +371,7 @@ Util::FlashBootloader Util::flash_bootloader()
         Debug("Flash OK\n");
 #if HAL_ENABLE_SAVE_PERSISTENT_PARAMS
     // ajfg
-    #if AP_ADD_CHECKSUMS_ENABLED
+    #if AP_CHECK_FIRMWARE_ENABLED
         // Add firmware checksum 64 bytes string hex
         get_firmware_checksum(persistent_params);
 
@@ -572,7 +572,7 @@ bool Util::get_persistent_params(ExpandingString &str) const
 }
 
 // ajfg
-#if AP_ADD_CHECKSUMS_ENABLED    
+#if AP_CHECK_FIRMWARE_ENABLED    
 /*
    Read the checksum from a predefined RomFS file and add to the String
 */

@@ -8,7 +8,7 @@ include hwdef-bl.inc
 
 
 # ajfg
-define AP_ADD_CHECKSUMS_ENABLED      1
+define AP_CHECK_FIRMWARE_ENABLED      1
 
 # Root folder 'build/board_name'
 env AP_FIRMWARE_CHECKSUM_KEY         firmware.chksum
