@@ -138,7 +138,7 @@ if len(sys.argv) != 6:
     print("  PRIVATE_KEY_FILE. Key file must be generated with 'generate_keys.py' script")
     print("  LIST_FILES. Filename and path of the ile containing the list of files to be added to the RomFS. Absolute or relative path")
     print("  ROMFS_FILE. Filename and path of the RomFS include file. Absolute or relative path")
-    print("  FILE_KEY. Key in the current ap_romfs_embedded.h file. Ie. processed_defaults.chksum")
+    print("  FILE_KEY. Key in the current ap_romfs_embedded.h file. Ie. firmware.chksum")
     print(" ")
     # $ Tools/scripts/signing/make_secure_fw.py build/CubeOrange/bin/arducopter.apj  aa_private_key.dat romfs_files.txt build/CubeOrange/ap_romfs_embedded.h   firmware.chksum  
     # checksum file = build/CubeOrange/bin/arducopter_apj.chksum 
