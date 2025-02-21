@@ -126,7 +126,7 @@
 #define PROTO_CHIP_FULL_ERASE       0x40    // erase program area and reset program address, skip any flash wear optimization and force an erase
 
 // ajfg
-#define PROTO_VERIFY_CHECKSUM		0x41    // Verify the checksum
+#define PROTO_VERIFY_SIGNATURE		0x41    // Verify the checksum
 #define PROTO_UPDATE_CHECKSUM		0x42    // Update the firmware checksum in the RomFS
 #define PROTO_UPDATE_PARAMS_CHECKSUM	0x43    // Update the parameters checksum in the RomFS
 
@@ -1231,13 +1231,13 @@ bootloader(unsigned timeout)
 
 
         // ajfg. V6
-        // Verify firmware checksum
+        // Verify firmware signature
         //
-        // command:		    VERIFY_CHECKSUM/<len:1>/<signature:len>/EOC
+        // command:		    VERIFY_SIGNATURE/<len:1>/<signature:len>/EOC
         // success reply:	INSYNC/OK
         // invalid reply:	INSYNC/INVALID
         //
-        case PROTO_VERIFY_CHECKSUM: {
+        case PROTO_VERIFY_SIGNATURE: {
             if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
                 // lower chance of random data on a uart triggering erase
                 goto cmd_bad;
@@ -1260,11 +1260,12 @@ bootloader(unsigned timeout)
             // arg = len
             int  checksum_len = arg;
 
-            if (checksum_len != WC_SHA256_DIGEST_SIZE) {
+            // RSA Signature length
+            if (checksum_len != 256) {
                 goto cmd_bad;
             }
            
-            // Read the checksum
+            // Read the signature
             for (int i = 0; i < arg; i++) {
                 c = cin(1000);
 
@@ -1286,8 +1287,10 @@ bootloader(unsigned timeout)
                 goto cmd_fail;
             }
 
-            // Compare checksums
-            if (memcmp(flash_buffer.c, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
+            // Check the signature
+            int ret = int_check_signature(const_cast<unsigned char *>(flash_buffer.c), 
+                                          256, calculated_hash, sizeof(calculated_hash));
+            if (ret != 0) {
                 // TODO
                 // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum");
                 goto cmd_fail;

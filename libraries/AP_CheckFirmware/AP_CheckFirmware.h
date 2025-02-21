@@ -41,6 +41,10 @@ uint8_t *find_parameters(uint32_t &out_image_size, unsigned char **out_parameter
 
 #endif
 
+// ajfg
+int int_check_signature(unsigned char *in_signature, int in_signature_length,
+    unsigned char *in_digest, int in_digest_length);
+
 enum class check_fw_result_t : uint8_t {
     CHECK_FW_OK = 0,
     FAIL_REASON_NO_APP_SIG = 10,

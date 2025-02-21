@@ -19,6 +19,8 @@
 // Maximum bound on digest algorithm encoding around digest 
 #define MAX_ENC_ALG_SZ      32
 
+// 8 byte signature version
+static const uint64_t sig_version = 30437LLU;
 
 const struct ap_secure_data public_keys __attribute__((section(".apsec_data")));
 
@@ -40,6 +42,82 @@ static bool all_zero_public_keys(void)
     return true;
 }
 
+// ajfg
+// Calculates the signature of the input hash and compare against
+// the received signature
+int int_check_signature(unsigned char *in_signature, int in_signature_length,
+    unsigned char *in_digest, int in_digest_length)
+{
+    // encSign = in_firmware_signature (calculated)
+    unsigned char   encSig[WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ];
+    word32          encSigLen = 0;
+
+    // decSign = in_firmware (stored in Firmware)
+    unsigned char*  decSig = nullptr;
+    word32          decSigLen = 0;
+
+    RsaKey          rsaKey;
+    RsaKey*         pRsaKey = nullptr;
+    word32          idx = 0;
+
+    int ret = 0;
+
+    // Encode digest with algorithm information as per PKCS#1.5 
+    // Same algorithm as make_secure_fw.py
+    encSigLen = wc_EncodeSignature(encSig, in_digest, in_digest_length, SHA256h);
+
+    for (const auto &public_key : public_keys.public_key) {
+        
+        // Try next key
+        // Initialize the RSA key and decode the DER encoded public key
+        ret = wc_InitRsaKey(&rsaKey, nullptr);
+        if (ret != 0) {
+            break;
+        }
+        pRsaKey = &rsaKey;
+
+        // Read the next public key
+        idx = 0;
+        ret = wc_RsaPublicKeyDecode(public_key.key, &idx, &rsaKey, sizeof(public_key.key));
+        if (ret != 0) {
+            break;
+        }
+
+        // Verify the signature by decrypting the value
+        // Skip signature version
+        decSigLen = wc_RsaSSL_VerifyInline(in_signature, in_signature_length, &decSig, &rsaKey);
+
+        if ((int)decSigLen < 0) {
+            ret = -1;
+            break;
+        }
+            
+        if (encSigLen != decSigLen) {
+            ret = -1;
+            break;
+        }
+
+        // Compare both signatures
+        if (XMEMCMP(encSig, decSig, encSigLen) == 0) {
+            // Signature ok
+            ret = 0;
+            break;
+        }
+
+        // Free the data structures
+        if (pRsaKey != nullptr) {
+            wc_FreeRsaKey(pRsaKey);
+            pRsaKey = nullptr;
+        }
+    }
+
+    // Free the data structures
+    if (pRsaKey != nullptr)
+        wc_FreeRsaKey(pRsaKey);
+
+    return ret;
+}
+
 /*
   check a signature against bootloader keys
  */
@@ -54,8 +132,6 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
         return check_fw_result_t::CHECK_FW_OK;
     }
 
-    // 8 byte signature version
-    static const uint64_t sig_version = 30437LLU;
     // ajfg. Previous  72 = 8 + 64 (sigver, sig)
     //       Now      264 = 8 + 256 (sigver, sig)
     if (ad->signature_length != 264) {
@@ -77,16 +153,6 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
     wc_Sha256*      pSha256 = nullptr;
     unsigned char   digest[WC_SHA256_DIGEST_SIZE];
 
-    unsigned char   encSig[WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ];
-    word32          encSigLen = 0;
-    unsigned char*  decSig = nullptr;
-    word32          decSigLen = 0;
-
-    RsaKey          rsaKey;
-    RsaKey*         pRsaKey = nullptr;
-    word32          idx = 0;
-
-
     // Calculate the digest (sha256) of the flash memory
     ret = wc_InitSha256(&sha);
     if (ret != 0) {
@@ -102,74 +168,22 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
     if (ret != 0) {
         return check_fw_result_t::FAIL_REASON_WOLF_INIT_FAILED;
     }
-    
-    // Encode digest with algorithm information as per PKCS#1.5 
-    // Same algorithm as make_secure_fw.py
-    encSigLen = wc_EncodeSignature(encSig, digest, sizeof(digest), SHA256h);
-
-    
-    // Encoded signature is ok
-    if ((int) encSigLen >= 0) {
-        for (const auto &public_key : public_keys.public_key) {
-
-            // Try next key
-            // Initialize the RSA key and decode the DER encoded public key
-            ret = wc_InitRsaKey(&rsaKey, nullptr);
-            if (ret != 0) {
-                break;
-            }
-            pRsaKey = &rsaKey;
-
-            // Read the next public key
-            idx = 0;
-            ret = wc_RsaPublicKeyDecode(public_key.key, &idx, &rsaKey, sizeof(public_key.key));
-            if (ret != 0) {
-                break;
-            }
-
-            // Verify the signature by decrypting the value
-            // Skip signature version
-            decSigLen = wc_RsaSSL_VerifyInline(const_cast<byte*>(&ad->signature[sizeof(sig_version)]), ad->signature_length,
-                                               &decSig, &rsaKey);
-            if ((int)decSigLen < 0) {
-                ret = -1;
-                break;
-            }
-                
-            if (encSigLen != decSigLen) {
-                ret = -1;
-                break;
-            }
-
-            // Compare both signatures
-            if (XMEMCMP(encSig, decSig, encSigLen) == 0) {
-                // Signature ok
-                ret = 0;
-                break;
-            }
-
-            // Free the data structures
-            if (pRsaKey != nullptr) {
-                wc_FreeRsaKey(pRsaKey);
-                pRsaKey = nullptr;
-            }
-        }
-    }
-
-    // Free the data structures
-    if (pRsaKey != nullptr)
-        wc_FreeRsaKey(pRsaKey);
+       
+    ret = int_check_signature(const_cast<unsigned char *>(&ad->signature[sizeof(sig_version)]), 
+                                ad->signature_length, digest, sizeof(digest));
 
     if (pSha256 != nullptr)
         wc_Sha256Free(pSha256);    
         
     wolfCrypt_Cleanup();
+
     // none of the public keys matched
     if (ret == 0)
         return check_fw_result_t::CHECK_FW_OK;
     else 
         return check_fw_result_t::FAIL_REASON_VERIFICATION;
 }
+
 #endif // AP_SIGNED_FIRMWARE
 
 /*

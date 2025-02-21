@@ -238,8 +238,9 @@ class uploader(object):
     CHIP_FULL_ERASE = b'\x40'     # full erase of flash
 
     # ajfg. New version 6
-    VERIFY_CHECKSUM = b'\x41'     # Verify the checksum
-    UPDATE_CHECKSUM = b'\x42'     # Update the checksum in the RomFS
+    VERIFY_SIGNATURE = b'\x41'    # Verify the firmware signature
+    UPDATE_CHECKSUM = b'\x42'     # Update the firmware checksum in the RomFS
+    UPDATE_PARAMETERS_CHECKSUM = b'\x43'     # Update the parameters checksum in the RomFS
 
     INFO_BL_REV     = b'\x01'        # bootloader protocol revision
     BL_REV_MIN      = 2              # minimum supported bootloader protocol
@@ -887,7 +888,7 @@ class uploader(object):
         return None
 
     # upload the firmware
-    def upload(self, fw, force=False, boot_delay=None, checksum_file = None):
+    def upload(self, fw, force=False, boot_delay=None, signature_file = None):
         # Make sure we are doing the right thing
         if self.board_type != fw.property('board_id'):
             # ID mismatch: check compatibility
@@ -938,13 +939,13 @@ class uploader(object):
             else:
                 self.__verify_v3("Verify ", fw)
 
-        # Send Verify Checksum
-        if self.__verify_checksum(checksum_file) == True:
-            print("\nERROR: Checksums do not match. Checksums in the board has not been updated")
+        # Send Check Signature
+        if self.__verify_signature(signature_file) == True:
+            print("\nERROR: Signature does not match. Checksums in the board has not been updated")
 
         else:
             self.__update_checksum()
-            print("\nChecksum updated correctly.\n")
+            print("\nChecksums updated correctly.\n")
 
         if boot_delay is not None:
             self.__set_boot_delay(boot_delay)
@@ -954,33 +955,33 @@ class uploader(object):
         self.port.close()
 
 
-    def __verify_checksum(self, in_filename):
+    def _verify_signature(self, in_filename):
         # Read the checksum from the file
-        checksum_buffer = None
+        signature_buffer = None
 
         try:
-            with open(in_filename, "rb") as checksum_file:
-                checksum_buffer = checksum_file.read()
+            with open(in_filename, "rb") as signature_file:
+                signature_buffer = signature_file.read()
 
         except FileNotFoundError:
-            print("ERROR: Checksum file does not exist")
+            print("ERROR: Signature file does not exist")
             return False
         
         except IOError:
-            print("ERROR: Reading the checksum file")
+            print("ERROR: Reading the signature file")
             return False
         
-        if checksum_buffer is None:
+        if signature_buffer is None:
             return False
 
         if runningPython3:
-            length = len(checksum_buffer).to_bytes(1, byteorder='big')
+            length = len(signature_buffer).to_bytes(1, byteorder='big')
         else:
-            length = chr(len(checksum_buffer))
+            length = chr(len(signature_buffer))
 
-        self.__send(uploader.VERIFY_CHECKSUM)
+        self.__send(uploader.VERIFY_SIGNATURE)
         self.__send(length)
-        self.__send(checksum_buffer)
+        self.__send(signature_buffer)
         self.__send(uploader.EOC)
         self.__getSync()
 
@@ -988,8 +989,26 @@ class uploader(object):
 
 
     def __update_checksum(self):
+        self.__update_firmware_checksum()
+        # self.__update_parameters_checksum()
+
+
+    def __update_firmware_checksum(self):
         self.__send(uploader.UPDATE_CHECKSUM)
         self.__send(uploader.EOC)
+        self.__getSync()
+
+
+# FIXME
+#     def __update_parameters_checksum(self):
+#         self.__send(uploader.UPDATE_PARAMETERS_CHECKSUM)
+#         self.__send(length)
+#         self.__send(checksum_buffer)
+#         self.__send(uploader.EOC)
+#         self.__getSync()
+
+
+
 
 
     def __next_baud_flightstack(self):
@@ -1177,7 +1196,7 @@ def main():
     parser.add_argument('--force-erase', action="store_true", help="Do not check for pre cleared flash, always erase the chip")
     parser.add_argument('firmware', nargs="?", action="store", default=None, help="Firmware file to be uploaded")
     # ajfg
-    parser.add_argument('checksum', action='store', default=None, help='Firmware checksum filename')
+    parser.add_argument('signature', action='store', default=None, help='Firmware signature filename')
     args = parser.parse_args()
 
     # warn people about ModemManager which interferes badly with Pixhawk
@@ -1242,7 +1261,7 @@ def main():
                     else:
                         # ajfg. Add checksum parameter
                         up.upload(fw, force=args.force, boot_delay=args.boot_delay,
-                                  checksum=args.checksum)
+                                  signature_file=args.signature)
 
                 except RuntimeError as ex:
                     # print the error and exit as a failure
