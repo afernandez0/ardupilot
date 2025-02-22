@@ -487,12 +487,14 @@ bootloader(unsigned timeout)
     static bool done_timer_init;
     unsigned original_timeout = timeout;
 
+#if AP_SIGNED_FIRMWARE
     // ajfg. Size of the firmware image size
     uint32_t    firmware_size = 0; 
     // Calculate checksum sha256 of the firmware
     unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
 
     memset(calculated_hash, 0, WC_SHA256_DIGEST_SIZE);
+#endif  // AP_SIGNED_FIRMWARE
 
     memset(first_words, 0xFF, sizeof(first_words));
 
@@ -894,9 +896,10 @@ bootloader(unsigned timeout)
                 goto cmd_bad;
             }
 
+#if AP_SIGNED_FIRMWARE
             // Update the size in bytes
             firmware_size += arg;
-
+#endif // AP_SIGNED_FIRMWARE
             // save the first words and don't program it until everything else is done
 #if !BOOT_FROM_EXT_FLASH
             if (address < sizeof(first_words)) {
@@ -1230,6 +1233,7 @@ bootloader(unsigned timeout)
         }
 
 
+#if AP_SIGNED_FIRMWARE
         // ajfg. V6
         // Verify firmware signature
         //
@@ -1303,7 +1307,7 @@ bootloader(unsigned timeout)
         // Update firmware checksum
         // This command must be executed after VERIFY_CHECKSUM
         //
-        // command:		    UPDATE_CHECKSUM/EOC
+        // command:		    UPDATE_CHECKSUM/<len:1>/<checksum:len>/EOC
         // success reply:	INSYNC/OK
         // invalid reply:	INSYNC/INVALID
         //
@@ -1313,20 +1317,41 @@ bootloader(unsigned timeout)
                 goto cmd_bad;
             }
 
-            if (!wait_for_eoc(200)) {
+            // expect count
+            led_set(LED_OFF);
+
+            arg = cin(50);
+
+            if (arg < 0) {
                 goto cmd_bad;
             }
 
-            bool have_checksum = false;
-            for(int i = 0; i < WC_SHA256_DIGEST_SIZE; ++ i) {
-                if (calculated_hash[i] != 0) {
-                    have_checksum = true;
-                    break;
-                }
+            // sanity-check arguments. Aligned to 4 bytes 
+            if (arg % 4) {
+                goto cmd_bad;
             }
 
-            if (! have_checksum) {
-                goto cmd_fail;
+            // arg = len
+            int  checksum_len = arg;
+
+            if (checksum_len != WC_SHA256_DIGEST_SIZE) {
+                goto cmd_bad;
+            }
+           
+            // Read the checksum
+            for (int i = 0; i < arg; i++) {
+                c = cin(1000);
+
+                if (c < 0) {
+                    goto cmd_bad;
+                }
+
+                // uint8_t
+                flash_buffer.c[i] = c;
+            }
+
+            if (!wait_for_eoc(200)) {
+                goto cmd_bad;
             }
 
             // Update checksum in the RomFS
@@ -1407,6 +1432,7 @@ bootloader(unsigned timeout)
             memcpy(parameters_checksum, flash_buffer.c, WC_SHA256_DIGEST_SIZE);
             break;
         }
+#endif //# AP_SIGNED_FIRMWARE
 
         default:
             continue;

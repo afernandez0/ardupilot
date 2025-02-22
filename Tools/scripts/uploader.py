@@ -888,7 +888,8 @@ class uploader(object):
         return None
 
     # upload the firmware
-    def upload(self, fw, force=False, boot_delay=None, signature_file = None):
+    def upload(self, fw, force=False, boot_delay=None, 
+               signature_file = None, firmware_filename = None, parameters_filename=None):
         # Make sure we are doing the right thing
         if self.board_type != fw.property('board_id'):
             # ID mismatch: check compatibility
@@ -939,13 +940,18 @@ class uploader(object):
             else:
                 self.__verify_v3("Verify ", fw)
 
-        # Send Check Signature
-        if self.__verify_signature(signature_file) == True:
-            print("\nERROR: Signature does not match. Checksums in the board has not been updated")
+        if signature_file is not None:
+            # Send Check Signature
+            if self.__verify_signature(signature_file) == True:
+                print("\nERROR: Signature does not match. Checksums in the board has not been updated")
 
-        else:
-            self.__update_checksum()
-            print("\nChecksums updated correctly.\n")
+            else:
+                if firmware_filename is not None and parameters_filename is not None:
+                    self.__update_checksum()
+                    print("\nChecksums updated correctly.\n")
+
+                else:
+                    print("\nERROR: Checksums not updated. Filename(s) are None\n")
 
         if boot_delay is not None:
             self.__set_boot_delay(boot_delay)
@@ -954,9 +960,9 @@ class uploader(object):
         self.__reboot()
         self.port.close()
 
-
-    def _verify_signature(self, in_filename):
-        # Read the checksum from the file
+    # ajfg. Load a binary file and stores it in a buffer 
+    def __load_file(self, in_filename):
+        # Read the signature from the file
         signature_buffer = None
 
         try:
@@ -965,19 +971,27 @@ class uploader(object):
 
         except FileNotFoundError:
             print("ERROR: Signature file does not exist")
-            return False
+            return (None, 0)
         
         except IOError:
             print("ERROR: Reading the signature file")
-            return False
+            return (None, 0)
         
         if signature_buffer is None:
-            return False
+            return (None, 0)
 
         if runningPython3:
             length = len(signature_buffer).to_bytes(1, byteorder='big')
         else:
             length = chr(len(signature_buffer))
+        
+        return (signature_buffer, length)
+
+    def _verify_signature(self, in_filename):
+        # Read the signature from the file
+        (signature_buffer, length) = self.__load_file(in_filename)
+        if signature_buffer is None:
+            return False
 
         self.__send(uploader.VERIFY_SIGNATURE)
         self.__send(length)
@@ -987,29 +1001,34 @@ class uploader(object):
 
         return True
 
-
-    def __update_checksum(self):
+    # Store new checksums 
+    def __update_checksum(self, in_firmware_filename, in_parameters_filename):
         self.__update_firmware_checksum()
-        # self.__update_parameters_checksum()
+        self.__update_parameters_checksum()
 
+    def __update_firmware_checksum(self, in_filename):
+        # Read the checksum from the file
+        (checksum_buffer, length) = self.__load_file(in_filename)
+        if checksum_buffer is None:
+            return False
 
-    def __update_firmware_checksum(self):
         self.__send(uploader.UPDATE_CHECKSUM)
+        self.__send(length)
+        self.__send(checksum_buffer)
         self.__send(uploader.EOC)
         self.__getSync()
 
+    def __update_parameters_checksum(self, in_filename):
+        # Read the checksum from the file
+        (checksum_buffer, length) = self.__load_file(in_filename)
+        if checksum_buffer is None:
+            return False
 
-# FIXME
-#     def __update_parameters_checksum(self):
-#         self.__send(uploader.UPDATE_PARAMETERS_CHECKSUM)
-#         self.__send(length)
-#         self.__send(checksum_buffer)
-#         self.__send(uploader.EOC)
-#         self.__getSync()
-
-
-
-
+        self.__send(uploader.UPDATE_PARAMETERS_CHECKSUM)
+        self.__send(length)
+        self.__send(checksum_buffer)
+        self.__send(uploader.EOC)
+        self.__getSync()
 
     def __next_baud_flightstack(self):
         self.baudrate_flightstack_idx = self.baudrate_flightstack_idx + 1
@@ -1196,7 +1215,10 @@ def main():
     parser.add_argument('--force-erase', action="store_true", help="Do not check for pre cleared flash, always erase the chip")
     parser.add_argument('firmware', nargs="?", action="store", default=None, help="Firmware file to be uploaded")
     # ajfg
-    parser.add_argument('signature', action='store', default=None, help='Firmware signature filename')
+    parser.add_argument('signature', nargs="?", action='store', default=None, help='Firmware signature filename')
+    parser.add_argument('firmware_checksum', nargs="?", action='store', default=None, help='Firmware checksum filename')
+    parser.add_argument('parameters_checksum', nargs="?", action='store', default=None, help='Parameters checksum filename')
+
     args = parser.parse_args()
 
     # warn people about ModemManager which interferes badly with Pixhawk
@@ -1259,9 +1281,10 @@ def main():
                         up.erase_extflash('Erase ExtF', args.erase_extflash)
                         print("\nExtF Erase Finished")
                     else:
-                        # ajfg. Add checksum parameter
+                        # ajfg. Add checksum parameters and signature
                         up.upload(fw, force=args.force, boot_delay=args.boot_delay,
-                                  signature_file=args.signature)
+                                  signature_file=args.signature,
+                                  firmware_filename=args.firmware_checksum, parameters_filename=args.parameters_checksum)
 
                 except RuntimeError as ex:
                     # print the error and exit as a failure
