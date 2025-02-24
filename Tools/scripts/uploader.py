@@ -945,13 +945,14 @@ class uploader(object):
             if self.__verify_signature(signature_file) == True:
                 print("\nERROR: Signature does not match. Checksums in the board has not been updated")
 
+            
+        if firmware_filename is not None and parameters_filename is not None:
+            if self.__update_checksum() == False:
+                print("\nERROR: Updating the checksums\n")
             else:
-                if firmware_filename is not None and parameters_filename is not None:
-                    self.__update_checksum()
-                    print("\nChecksums updated correctly.\n")
-
-                else:
-                    print("\nERROR: Checksums not updated. Filename(s) are None\n")
+                print("\nChecksums updated correctly.\n")
+        else:
+            print("\nERROR: Checksums not updated. Filename(s) are None\n")
 
         if boot_delay is not None:
             self.__set_boot_delay(boot_delay)
@@ -966,8 +967,8 @@ class uploader(object):
         signature_buffer = None
 
         try:
-            with open(in_filename, "rb") as signature_file:
-                signature_buffer = signature_file.read()
+            with open(in_filename, "rb") as a_file:
+                signature_buffer = a_file.read()
 
         except FileNotFoundError:
             print("ERROR: Signature file does not exist")
@@ -987,7 +988,7 @@ class uploader(object):
         
         return (signature_buffer, length)
 
-    def _verify_signature(self, in_filename):
+    def __verify_signature(self, in_filename):
         # Read the signature from the file
         (signature_buffer, length) = self.__load_file(in_filename)
         if signature_buffer is None:
@@ -1003,8 +1004,12 @@ class uploader(object):
 
     # Store new checksums 
     def __update_checksum(self, in_firmware_filename, in_parameters_filename):
-        self.__update_firmware_checksum()
-        self.__update_parameters_checksum()
+        if self.__update_firmware_checksum() == False:
+            return False
+        if self.__update_parameters_checksum() == False:
+            return False
+        return True
+
 
     def __update_firmware_checksum(self, in_filename):
         # Read the checksum from the file
@@ -1017,6 +1022,7 @@ class uploader(object):
         self.__send(checksum_buffer)
         self.__send(uploader.EOC)
         self.__getSync()
+        return True
 
     def __update_parameters_checksum(self, in_filename):
         # Read the checksum from the file
@@ -1029,6 +1035,7 @@ class uploader(object):
         self.__send(checksum_buffer)
         self.__send(uploader.EOC)
         self.__getSync()
+        return True
 
     def __next_baud_flightstack(self):
         self.baudrate_flightstack_idx = self.baudrate_flightstack_idx + 1
