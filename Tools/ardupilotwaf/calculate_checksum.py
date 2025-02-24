@@ -244,5 +244,6 @@ def build_calculate_checksum(bld):
 
 @conf
 def add_checksums_romfs(bld):
-    bld.add_post_fun(_add_checksums_romfs)
+    if bld.env.BOARD_CLASS != "SITL":
+        bld.add_post_fun(_add_checksums_romfs)
 
