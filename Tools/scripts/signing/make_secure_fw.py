@@ -74,56 +74,56 @@ def save_checksum(in_filename: str, in_checksum: any):
     return binary_name
 
 """Update a file in the RomFS"""
-def update_checksums_romfs(in_listfiles_filename: str, in_romfs_filename: str, in_key: str, in_new_filename: str):
-    Logs.info('')
+# def update_checksums_romfs(in_listfiles_filename: str, in_romfs_filename: str, in_key: str, in_new_filename: str):
+#     Logs.info('')
 
-    Logs.info(f"Updating firmware signature in ROMFS: {in_romfs_filename}")
-    Logs.info(f"List of files file:                   {in_listfiles_filename}")
-    Logs.info(f"key  = {in_key}")
-    Logs.info(f"file = {in_new_filename}")
+#     Logs.info(f"Updating firmware signature in ROMFS: {in_romfs_filename}")
+#     Logs.info(f"List of files file:                   {in_listfiles_filename}")
+#     Logs.info(f"key  = {in_key}")
+#     Logs.info(f"file = {in_new_filename}")
 
-    # Check files exist
-    path_to_list_romfs_files = Path(in_listfiles_filename)
-    if not path_to_list_romfs_files.is_file():
-        Logs.error("List of files file does not exist")
-        return
+#     # Check files exist
+#     path_to_list_romfs_files = Path(in_listfiles_filename)
+#     if not path_to_list_romfs_files.is_file():
+#         Logs.error("List of files file does not exist")
+#         return
 
-    path_to_romfs = Path(in_romfs_filename)
-    if not path_to_romfs.is_file():
-        Logs.error("RomFS file does not exist")
-        return
+#     path_to_romfs = Path(in_romfs_filename)
+#     if not path_to_romfs.is_file():
+#         Logs.error("RomFS file does not exist")
+#         return
 
-    # Make a copy of the file 
-    header_file = in_romfs_filename
-    copy_header_file = header_file.replace(".", "_") + ".txt"
+#     # Make a copy of the file 
+#     header_file = in_romfs_filename
+#     copy_header_file = header_file.replace(".", "_") + ".txt"
 
-    print("*** Creating backup of: ", header_file)
-    shutil.copy(header_file, copy_header_file)
+#     print("*** Creating backup of: ", header_file)
+#     shutil.copy(header_file, copy_header_file)
 
-    # Read current list of files and replace the firmware checksum
-    list_files = []
-    with open(in_listfiles_filename, "r") as rom_files:
-        for a_file in rom_files.readlines():
-            # print(a_file.strip())
-            (filename, file_path) = a_file.strip().split(" ")
+#     # Read current list of files and replace the firmware checksum
+#     list_files = []
+#     with open(in_listfiles_filename, "r") as rom_files:
+#         for a_file in rom_files.readlines():
+#             # print(a_file.strip())
+#             (filename, file_path) = a_file.strip().split(" ")
 
-            if filename == in_key:
-                Logs.info("    Key found. Updated")
-                list_files += [(in_key, in_new_filename)]
-            else:
-                list_files += [(filename, file_path)]
+#             if filename == in_key:
+#                 Logs.info("    Key found. Updated")
+#                 list_files += [(in_key, in_new_filename)]
+#             else:
+#                 list_files += [(filename, file_path)]
 
 
-    # Update the list of files
-    with open(in_listfiles_filename, "w") as rom_files:
-        for (name, filename) in list_files:
-            rom_files.write(f"{name} {filename}") 
-            rom_files.write("\n") 
+#     # Update the list of files
+#     with open(in_listfiles_filename, "w") as rom_files:
+#         for (name, filename) in list_files:
+#             rom_files.write(f"{name} {filename}") 
+#             rom_files.write("\n") 
 
-    # process all files with embed
-    # Compressed files by default
-    if not embed.create_embedded_h(in_romfs_filename, list_files, False, False):
-        Logs.error("Failed to created ap_romfs_embedded.h")
+#     # process all files with embed
+#     # Compressed files by default
+#     if not embed.create_embedded_h(in_romfs_filename, list_files, ctx.env.AP_PARAMETERS_CHECKSUM_KEY, False):
+#         Logs.error("Failed to created ap_romfs_embedded.h")
 
         
 

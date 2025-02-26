@@ -9,17 +9,26 @@ May 2017
 
 import os, sys, tempfile, gzip
 
-def calculate_checksum_file(in_filename, in_extension, in_buffer):
-    print("**** Calculating checksum of params file: ", in_filename)
+
+
+def calculate_checksum_file(in_filename, in_extension, in_fullname):
+    print("**** Calculating checksum of params file: ", in_fullname)
+
+    try:
+        in_buffer = open(in_fullname,'rb').read()
+    except Exception as e:
+        print(e)
+        raise Exception("Failed to read %s" % in_fullname)
 
     import hashlib
+
     h = hashlib.new('sha256')
 
     h.update(in_buffer)
     # print("    new buffer: [",new_buffer,"]",len(new_buffer))
     # print("    SHA256: ", h.hexdigest() )
 
-    # Save to a ASC file
+    # # Save to a ASC file
     checksum_filename = in_filename + ".asc"
     # Reconstruct the original filename
     only_filename = os.path.basename(in_filename) + in_extension
@@ -35,6 +44,7 @@ def calculate_checksum_file(in_filename, in_extension, in_buffer):
 def write_encode(out, s):
     out.write(s.encode())
 
+
 def embed_file(out, f, idx, embedded_name, uncompressed):
     '''embed one file'''
     try:
@@ -42,14 +52,6 @@ def embed_file(out, f, idx, embedded_name, uncompressed):
     except Exception:
         raise Exception("Failed to embed %s" % f)
 
-    # ajfg
-    pre, ext = os.path.splitext(f)
-
-    # Only calculate the checksum of parameter files 
-    if ext == ".parm" or ext == ".param":
-        calculate_checksum_file(pre, ext, contents)
-    # end ajfg
-    
     pad = 0
     if embedded_name.endswith("bootloader.bin"):
         # round size to a multiple of 32 bytes for bootloader, this ensures
@@ -103,32 +105,51 @@ def crc32(bytes, crc=0):
             crc ^= (0xEDB88320 & mask)
     return crc
 
-def create_embedded_h(filename, files, uncompressed=False, list_files=False):
+def create_embedded_h(filename, files, in_params_key, uncompressed=False):
     '''create a ap_romfs_embedded.h file'''
 
     out = open(filename, "wb")
     write_encode(out, '''// generated embedded files for AP_ROMFS\n\n''')
 
-    if list_files:
-        list_files_file = open("romfs_files.txt", "w")
-
     # remove duplicates and sort
     files = sorted(list(set(files)))
     crc = {}
+
+    # Calculate the checksum of parameters
     for i in range(len(files)):
         (name, filename) = files[i]
 
-        if list_files:
-            # Write the file to the list of files for a further processing
-            list_files_file.write(f"{name} {filename}") 
-            list_files_file.write("\n") 
+        pre, ext = os.path.splitext(filename)
 
-        try:
-            crc[filename] = embed_file(out, filename, i, name, uncompressed)
-        except Exception as e:
-            print(e)
-            return False
+        # Only calculate the checksum of parameter files 
+        if ext == ".parm" or ext == ".param":            
+            # Creates the checksum file; pre + ".chksum"
+            calculate_checksum_file(pre, ext, filename)
+            break
 
+    for i in range(len(files)):
+        (name, filename) = files[i]
+
+        # ajfg
+        # It skips the checksum file
+        if name == in_params_key:
+            pre, ext = os.path.splitext(filename)
+
+            # Add to the key
+            checksum_filename = pre + ".chksum"
+            # checksum_filename = os.path.basename(pre) + ".chksum"
+            try:
+                crc[filename] = embed_file(out, checksum_filename, i, name, uncompressed)
+            except Exception as e:
+                print(e)
+                return False
+        else: 
+            try:
+                crc[filename] = embed_file(out, filename, i, name, uncompressed)
+            except Exception as e:
+                print(e)
+                return False
+        
     write_encode(out, '''const AP_ROMFS::embedded_file AP_ROMFS::files[] = {\n''')
 
     for i in range(len(files)):
@@ -139,6 +160,7 @@ def create_embedded_h(filename, files, uncompressed=False, list_files=False):
             ustr = ''
         print("**** Embedding file %s:%s%s" % (name, filename, ustr))
         write_encode(out, '{ "%s", sizeof(ap_romfs_%u), 0x%08x, ap_romfs_%u },\n' % (name, i, crc[filename], i))
+
     write_encode(out, '};\n')
     out.close()
     return True
@@ -150,4 +172,5 @@ if __name__ == '__main__':
     for i in range(1, len(sys.argv)):
         f = sys.argv[i]
         flist.append((f, f))
-    create_embedded_h("/tmp/ap_romfs_embedded.h", flist)
+
+    create_embedded_h("/tmp/ap_romfs_embedded.h", flist, "defaults.chksum")

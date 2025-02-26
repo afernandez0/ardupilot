@@ -75,175 +75,185 @@ def save_checksum(in_filename: str, in_checksum: str):
         nf.write( bytes.fromhex(line_parts[0]) )
         
 """Calculate the checksum of all files in the 'bin' folder"""
-def _build_calculate_checksum(bld):
-    Logs.info('')
+# def _build_calculate_checksum(bld):
+#     Logs.info('')
 
-    text('Calculating checksum of binary files')
+#     text('Calculating checksum of binary files')
 
-    build_directory = os.path.join( bld.bldnode.abspath(), "bin" )
-    text('   Binaries directory: ', build_directory)
+#     build_directory = os.path.join( bld.bldnode.abspath(), "bin" )
+#     text('   Binaries directory: ', build_directory)
     
-    # Get all files
-    for filename in os.listdir(build_directory):
-        pre, ext = os.path.splitext(filename)
+#     # Get all files
+#     for filename in os.listdir(build_directory):
+#         pre, ext = os.path.splitext(filename)
 
-        # Skip chksum files 
-        if ext != None and (ext == ".chksum" or ext == ".asc"):
-           text("   Skipping existing chksum file: ", filename)
-           continue
+#         # Skip chksum files 
+#         if ext != None and (ext == ".chksum" or ext == ".asc"):
+#            text("   Skipping existing chksum file: ", filename)
+#            continue
 
-        calculate_checksum( os.path.join( build_directory, filename) )
+#         calculate_checksum( os.path.join( build_directory, filename) )
 
 
 """Manually modify the RomFS file"""
-def modify_romfs(bld):
-    header_filename = bld.bldnode.make_node('ap_romfs_embedded.h').abspath()
-    print("**** HEADER = ", header_filename)
-    # print("              ",bld.bldnode.abspath())
+# def modify_romfs(bld):
+#     header_filename = bld.bldnode.make_node('ap_romfs_embedded.h').abspath()
+#     print("**** HEADER = ", header_filename)
+#     # print("              ",bld.bldnode.abspath())
 
-    last_fileindex = 99
+#     last_fileindex = 99
 
-    with open(header_filename, "r") as romfs:
-        # Look for the last file
-        lines = romfs.read().splitlines()
-        counter = -1
-        last_line = ""
-        while True:
-            last_line = lines[counter]
-            if "};" in last_line:
-                break
-            counter -= 1
+#     with open(header_filename, "r") as romfs:
+#         # Look for the last file
+#         lines = romfs.read().splitlines()
+#         counter = -1
+#         last_line = ""
+#         while True:
+#             last_line = lines[counter]
+#             if "};" in last_line:
+#                 break
+#             counter -= 1
 
-        # Previous line
-        counter -= 1
-        last_line = lines[counter]
+#         # Previous line
+#         counter -= 1
+#         last_line = lines[counter]
 
-        # Look for the last index
-        last_line = last_line.replace("{", "")
-        last_line = last_line.replace("}", "")
-        line_parts = last_line.split(",")
-        for item in line_parts:
-            new_item = item.strip()
-            if new_item.startswith("ap_romfs_"):
-                romfs_file_parts = new_item.split("_")
-                if len(romfs_file_parts) > 2:
-                    last_fileindex = int(romfs_file_parts[2])
-                    break
+#         # Look for the last index
+#         last_line = last_line.replace("{", "")
+#         last_line = last_line.replace("}", "")
+#         line_parts = last_line.split(",")
+#         for item in line_parts:
+#             new_item = item.strip()
+#             if new_item.startswith("ap_romfs_"):
+#                 romfs_file_parts = new_item.split("_")
+#                 if len(romfs_file_parts) > 2:
+#                     last_fileindex = int(romfs_file_parts[2])
+#                     break
 
-        print(f"Last file index: {last_fileindex}")
+#         print(f"Last file index: {last_fileindex}")
 
-    with open(header_filename, "r+b") as romfs:
+#     with open(header_filename, "r+b") as romfs:
 
-        # Add new files before 'const AP_ROMFS::embedded_file'
-        romfs.seek(0)
-        previous_line_position = romfs.tell()
+#         # Add new files before 'const AP_ROMFS::embedded_file'
+#         romfs.seek(0)
+#         previous_line_position = romfs.tell()
 
-        data_buffer = None
-        for tmp_buffer_line in romfs:
-            current_line = tmp_buffer_line.decode()
-            if current_line.startswith("const AP_ROMFS::embedded_file"):
-                # Move to previous line
-                # print(f"Moving to {previous_line_position}")
-                romfs.seek(previous_line_position)
+#         data_buffer = None
+#         for tmp_buffer_line in romfs:
+#             current_line = tmp_buffer_line.decode()
+#             if current_line.startswith("const AP_ROMFS::embedded_file"):
+#                 # Move to previous line
+#                 # print(f"Moving to {previous_line_position}")
+#                 romfs.seek(previous_line_position)
 
-                # Store the list of files
-                data_buffer = romfs.readlines()
+#                 # Store the list of files
+#                 data_buffer = romfs.readlines()
 
-                romfs.seek(previous_line_position)
+#                 romfs.seek(previous_line_position)
 
-                # Insert Firmware checksum 
-                first_file_index = last_fileindex + 1
-                tmp_filename = os.path.join( bld.bldnode.abspath(), bld.env.AP_FIRMWARE_CHECKSUM_FILE)
-                calculated_crc1 = embed.embed_file(romfs, tmp_filename, first_file_index, 
-                                                   bld.env.AP_FIRMWARE_CHECKSUM_KEY, 
-                                                   bld.env.ROMFS_UNCOMPRESSED)
+#                 # Insert Firmware checksum 
+#                 first_file_index = last_fileindex + 1
+#                 tmp_filename = os.path.join( bld.bldnode.abspath(), bld.env.AP_FIRMWARE_CHECKSUM_FILE)
+#                 calculated_crc1 = embed.embed_file(romfs, tmp_filename, first_file_index, 
+#                                                    bld.env.AP_FIRMWARE_CHECKSUM_KEY, 
+#                                                    bld.env.ROMFS_UNCOMPRESSED)
 
-                second_file_index = last_fileindex + 2
-                tmp_filename = os.path.join( bld.bldnode.abspath(), bld.env.AP_PARAMETERS_CHECKSUM_FILE)
-                calculated_crc2 = embed.embed_file(romfs, tmp_filename, second_file_index, 
-                                                   bld.env.AP_PARAMETERS_CHECKSUM_KEY,
-                                                   bld.env.ROMFS_UNCOMPRESSED)
+#                 second_file_index = last_fileindex + 2
+#                 tmp_filename = os.path.join( bld.bldnode.abspath(), bld.env.AP_PARAMETERS_CHECKSUM_FILE)
+#                 calculated_crc2 = embed.embed_file(romfs, tmp_filename, second_file_index, 
+#                                                    bld.env.AP_PARAMETERS_CHECKSUM_KEY,
+#                                                    bld.env.ROMFS_UNCOMPRESSED)
 
-                embed.write_encode(romfs, "\n")
+#                 embed.write_encode(romfs, "\n")
 
-                for current_line in data_buffer:
-                    if not current_line.startswith(b"};"):
-                        romfs.write(current_line)
-                    else:
-                        break
+#                 for current_line in data_buffer:
+#                     if not current_line.startswith(b"};"):
+#                         romfs.write(current_line)
+#                     else:
+#                         break
 
-                first_file_line = '{ "%s", sizeof(ap_romfs_%u),  0x%08x, ap_romfs_%u },\n' % (
-                                    "firmware.chksum", first_file_index, calculated_crc1, first_file_index)
-                embed.write_encode(romfs, first_file_line)
+#                 first_file_line = '{ "%s", sizeof(ap_romfs_%u),  0x%08x, ap_romfs_%u },\n' % (
+#                                     "firmware.chksum", first_file_index, calculated_crc1, first_file_index)
+#                 embed.write_encode(romfs, first_file_line)
                     
-                second_file_line = '{ "%s", sizeof(ap_romfs_%u),  0x%08x, ap_romfs_%u },\n' % (
-                                        "params.chksum", second_file_index, calculated_crc2, second_file_index)
-                embed.write_encode(romfs, second_file_line)
+#                 second_file_line = '{ "%s", sizeof(ap_romfs_%u),  0x%08x, ap_romfs_%u },\n' % (
+#                                         "params.chksum", second_file_index, calculated_crc2, second_file_index)
+#                 embed.write_encode(romfs, second_file_line)
 
-                embed.write_encode(romfs, "};\n")
+#                 embed.write_encode(romfs, "};\n")
 
-                # End of processing 
-                break
+#                 # End of processing 
+#                 break
 
-            previous_line_position = romfs.tell()
+#             previous_line_position = romfs.tell()
 
 
 """Add the two new files to the list of RomFS files and create the new RomFS include file"""
-def _add_checksums_romfs(bld):
+# def _add_checksums_romfs(bld):
+#     Logs.info('')
+
+#     text('Adding signature files to ROMFS')
+
+#     path_to_list_romfs_files = Path("romfs_files.txt")
+#     if path_to_list_romfs_files.is_file():
+#         # file exists
+#         list_files_file = open("romfs_files.txt", "a+")
+
+#         # Write the file to the list of files for a further processing
+#         tmp_filename = os.path.join( bld.bldnode.abspath(), bld.env.AP_FIRMWARE_CHECKSUM_FILE)
+#         list_files_file.write(f"{bld.env.AP_FIRMWARE_CHECKSUM_KEY} {tmp_filename}") 
+#         list_files_file.write("\n")
+
+#         # Write the file to the list of files for a further processing
+#         tmp_filename = os.path.join( bld.bldnode.abspath(), bld.env.AP_PARAMETERS_CHECKSUM_FILE)
+#         list_files_file.write(f"{bld.env.AP_PARAMETERS_CHECKSUM_KEY} {tmp_filename}") 
+#         list_files_file.write("\n") 
+
+#         list_files_file.close()
+
+#         header_file = bld.bldnode.make_node('ap_romfs_embedded.h').abspath()
+#         copy_header_file = header_file.replace(".", "_") + ".txt"
+
+#         # Make a copy of the file 
+#         print("*** Creating backup of: ", header_file)
+#         shutil.copy(header_file, copy_header_file)
+
+#         # Create new list of files
+#         new_list_files = []
+#         for a_file in bld.env.ROMFS_FILES:
+#             new_list_files.append(a_file)
+
+#         tmp_filename = bld.bldnode.make_node(bld.env.AP_FIRMWARE_CHECKSUM_FILE).abspath()
+#         new_list_files += [(bld.env.AP_FIRMWARE_CHECKSUM_KEY, tmp_filename)]
+
+#         tmp_filename = bld.bldnode.make_node(bld.env.AP_PARAMETERS_CHECKSUM_FILE).abspath()
+#         new_list_files += [(bld.env.AP_PARAMETERS_CHECKSUM_KEY, tmp_filename)]
+
+#         # process all files with embed
+#         if not embed.create_embedded_h(header_file, new_list_files, bld.env.ROMFS_UNCOMPRESSED, False):
+#             bld.fatal("Failed to created ap_romfs_embedded.h")
+
+#     else:
+#         modify_romfs(bld)
+
+"""Modify the RomFS to include the Firmware checksum"""
+def _modify_checksums_romfs(bld):
     Logs.info('')
 
-    text('Adding signature files to ROMFS')
 
-    path_to_list_romfs_files = Path("romfs_files.txt")
-    if path_to_list_romfs_files.is_file():
-        # file exists
-        list_files_file = open("romfs_files.txt", "a+")
+# @conf
+# def build_calculate_checksum(bld):
+#     # if not bld.env.AP_PROGRAM_AS_STLIB:
+#     bld.add_post_fun(_build_calculate_checksum)
 
-        # Write the file to the list of files for a further processing
-        tmp_filename = os.path.join( bld.bldnode.abspath(), bld.env.AP_FIRMWARE_CHECKSUM_FILE)
-        list_files_file.write(f"{bld.env.AP_FIRMWARE_CHECKSUM_KEY} {tmp_filename}") 
-        list_files_file.write("\n")
 
-        # Write the file to the list of files for a further processing
-        tmp_filename = os.path.join( bld.bldnode.abspath(), bld.env.AP_PARAMETERS_CHECKSUM_FILE)
-        list_files_file.write(f"{bld.env.AP_PARAMETERS_CHECKSUM_KEY} {tmp_filename}") 
-        list_files_file.write("\n") 
-
-        list_files_file.close()
-
-        header_file = bld.bldnode.make_node('ap_romfs_embedded.h').abspath()
-        copy_header_file = header_file.replace(".", "_") + ".txt"
-
-        # Make a copy of the file 
-        print("*** Creating backup of: ", header_file)
-        shutil.copy(header_file, copy_header_file)
-
-        # Create new list of files
-        new_list_files = []
-        for a_file in bld.env.ROMFS_FILES:
-            new_list_files.append(a_file)
-
-        tmp_filename = bld.bldnode.make_node(bld.env.AP_FIRMWARE_CHECKSUM_FILE).abspath()
-        new_list_files += [(bld.env.AP_FIRMWARE_CHECKSUM_KEY, tmp_filename)]
-
-        tmp_filename = bld.bldnode.make_node(bld.env.AP_PARAMETERS_CHECKSUM_FILE).abspath()
-        new_list_files += [(bld.env.AP_PARAMETERS_CHECKSUM_KEY, tmp_filename)]
-
-        # process all files with embed
-        if not embed.create_embedded_h(header_file, new_list_files, bld.env.ROMFS_UNCOMPRESSED, False):
-            bld.fatal("Failed to created ap_romfs_embedded.h")
-
-    else:
-        modify_romfs(bld)
-
-@conf
-def build_calculate_checksum(bld):
-    # if not bld.env.AP_PROGRAM_AS_STLIB:
-    bld.add_post_fun(_build_calculate_checksum)
+# @conf
+# def add_checksums_romfs(bld):
+#     if bld.env.BOARD_CLASS != "SITL":
+#         bld.add_post_fun(_add_checksums_romfs)
 
 
 @conf
-def add_checksums_romfs(bld):
+def modify_checksums_romfs(bld):
     if bld.env.BOARD_CLASS != "SITL":
-        bld.add_post_fun(_add_checksums_romfs)
-
+        bld.add_post_fun(_modify_checksums_romfs)

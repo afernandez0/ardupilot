@@ -513,7 +513,11 @@ class Board:
                     if fnmatch.fnmatch(f,"*~"):
                         # exclude emacs tmp files
                         continue
-                    fname = root[len(custom_dir)+1:]+"/"+f
+
+                    if len(root[len(custom_dir)+1:]) > 0:
+                        fname = root[len(custom_dir)+1:]+"/"+f
+                    else:
+                        fname = f
                     env.ROMFS_FILES += [(fname,root+"/"+f)]
 
     def pre_build(self, bld):
@@ -536,8 +540,8 @@ class Board:
         '''embed some files using AP_ROMFS'''
         import embed
         header = ctx.bldnode.make_node('ap_romfs_embedded.h').abspath()
-        # ajfg. Generate a list of files to be added 
-        if not embed.create_embedded_h(header, ctx.env.ROMFS_FILES, ctx.env.ROMFS_UNCOMPRESSED, True):
+        # ajfg. Parameters key
+        if not embed.create_embedded_h(header, ctx.env.ROMFS_FILES, ctx.env.AP_PARAMETERS_CHECKSUM_KEY,  ctx.env.ROMFS_UNCOMPRESSED):
             ctx.fatal("Failed to created ap_romfs_embedded.h")
 
 Board = BoardMeta('Board', Board.__bases__, dict(Board.__dict__))
