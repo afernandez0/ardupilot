@@ -1242,6 +1242,7 @@ bootloader(unsigned timeout)
         // invalid reply:	INSYNC/INVALID
         //
         case PROTO_VERIFY_SIGNATURE: {
+            uprintf("   == Verify signature\n");
             if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
                 // lower chance of random data on a uart triggering erase
                 goto cmd_bad;
@@ -1268,6 +1269,7 @@ bootloader(unsigned timeout)
             if (checksum_len != 256) {
                 goto cmd_bad;
             }
+            uprintf("   chk len=%d\n", checksum_len);
            
             // Read the signature
             for (int i = 0; i < arg; i++) {
@@ -1284,18 +1286,22 @@ bootloader(unsigned timeout)
             if (!wait_for_eoc(200)) {
                 goto cmd_bad;
             }
+            uprintf("   EOC\n");
 
             const uint8_t *firmware_address = (const uint8_t *)(APP_START_ADDRESS);
+            uprintf("   addr=%x\n", int(firmware_address));
 
             if (calculate_hash(firmware_address, firmware_size, calculated_hash) != 0) {
                 goto cmd_fail;
             }
+            uprintf("   hash=%02x %02x\n", calculated_hash[0], calculated_hash[31]);
 
             // Check the signature
             int ret = int_check_signature(const_cast<unsigned char *>(flash_buffer.c), 
-                                          256, calculated_hash, sizeof(calculated_hash));
+                                          256, calculated_hash, sizeof(calculated_hash));            
             if (ret != 0) {
                 // TODO
+                uprintf("   Bad sign\n");
                 // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum");
                 goto cmd_fail;
             }
@@ -1312,6 +1318,7 @@ bootloader(unsigned timeout)
         // invalid reply:	INSYNC/INVALID
         //
         case PROTO_UPDATE_CHECKSUM: {
+            uprintf("   Upd chck\n");
             if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
                 // lower chance of random data on a uart triggering erase
                 goto cmd_bad;
@@ -1333,6 +1340,8 @@ bootloader(unsigned timeout)
 
             // arg = len
             int  checksum_len = arg;
+
+            uprintf("   chk len=%d\n", checksum_len);
 
             if (checksum_len != WC_SHA256_DIGEST_SIZE) {
                 goto cmd_bad;
@@ -1358,6 +1367,7 @@ bootloader(unsigned timeout)
             uint32_t image_size = 0;
             uint8_t *firmware_checksum = find_firmware(image_size);
         
+            uprintf("   addr=%x\n", int(firmware_checksum));
             if (firmware_checksum == nullptr) {
                 goto cmd_fail;
             }
@@ -1376,6 +1386,8 @@ bootloader(unsigned timeout)
         // invalid reply:	INSYNC/INVALID
         //
         case PROTO_UPDATE_PARAMS_CHECKSUM: {
+            uprintf("   Upd pars chck\n");
+
             if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
                 // lower chance of random data on a uart triggering erase
                 goto cmd_bad;
@@ -1397,6 +1409,7 @@ bootloader(unsigned timeout)
 
             // arg = len
             int  checksum_len = arg;
+            uprintf("   chk len=%d\n", checksum_len);
 
             if (checksum_len != WC_SHA256_DIGEST_SIZE) {
                 goto cmd_bad;
@@ -1424,6 +1437,7 @@ bootloader(unsigned timeout)
             uint32_t parameters_size = 0;
             uint8_t *parameters_checksum = find_parameters(parameters_size, &parameters_address);
 
+            uprintf("   addr=%x\n", int(parameters_checksum));
             if (parameters_checksum == nullptr) {
                 goto cmd_fail;
             }
