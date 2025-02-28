@@ -849,7 +849,10 @@ def _build_post_funs(bld):
         # Do not calculate the checksum for the bootloader
         if bld.cmd != 'bootloader':
             # Modify Firmware checksum
-            bld.modify_checksums_romfs()
+            # bld.modify_checksums_romfs()
+
+            # Calculate the checksum of all files in the 'bin' folder
+            bld.build_calculate_checksum()
         
         bld.build_summary_post_fun()
 

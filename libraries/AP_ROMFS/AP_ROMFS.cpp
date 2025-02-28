@@ -32,22 +32,6 @@ const AP_ROMFS::embedded_file AP_ROMFS::files[] = {};
 #endif
 
 
-// ajfg
-// ==== TESTING ==========================
-// #include <GCS_MAVLink/GCS.h>
-//#if HAL_GCS_ENABLED
-// #define Debug(fmt, args ...)  do { gcs().send_text(MAV_SEVERITY_INFO, fmt, ## args); } while (0)
-// #endif // HAL_GCS_ENABLED
-
-// #ifndef Debug
-#include <AP_HAL/AP_HAL.h>
-
-extern const AP_HAL::HAL& hal;
-
-#define Debug(fmt, args ...)  do { hal.console->printf(fmt, ## args); } while (0)
-// #endif
-// ==== TESTING ==========================
-
 /*
   find an embedded file
 */
@@ -77,8 +61,6 @@ const uint8_t *AP_ROMFS::find_decompress(const char *name, uint32_t &size)
     if (!compressed_data) {
         return nullptr;
     }
-    // ajfg. Test
-    Debug("** Compressed data\n");
 
 #ifdef HAL_ROMFS_UNCOMPRESSED
     size = compressed_size;
@@ -92,7 +74,6 @@ const uint8_t *AP_ROMFS::find_decompress(const char *name, uint32_t &size)
     if (!decompressed_data) {
         return nullptr;
     }
-    Debug("** Decompressed data\n");
 
     // explicitly null terimnate the data
     decompressed_data[decompressed_size] = 0;
@@ -117,7 +98,6 @@ const uint8_t *AP_ROMFS::find_decompress(const char *name, uint32_t &size)
 
     d->dest = decompressed_data;
     d->destSize = decompressed_size;
-    Debug("** Gzip data\n");
 
     // we don't check CRC, as it just wastes flash space for constant
     // ROMFS data
@@ -129,13 +109,11 @@ const uint8_t *AP_ROMFS::find_decompress(const char *name, uint32_t &size)
         ::free(decompressed_data);
         return nullptr;
     }
-    Debug("** Pre-CRC\n");
 
     if (crc32_small(0, decompressed_data, decompressed_size) != crc) {
         ::free(decompressed_data);
         return nullptr;
     }
-    Debug("** Post-CRC\n");
     
     size = decompressed_size;
     return decompressed_data;

@@ -10,37 +10,6 @@ May 2017
 import os, sys, tempfile, gzip
 
 
-
-def calculate_checksum_file(in_filename, in_extension, in_fullname):
-    print("**** Calculating checksum of params file: ", in_fullname)
-
-    try:
-        in_buffer = open(in_fullname,'rb').read()
-    except Exception as e:
-        print(e)
-        raise Exception("Failed to read %s" % in_fullname)
-
-    import hashlib
-
-    h = hashlib.new('sha256')
-
-    h.update(in_buffer)
-    # print("    new buffer: [",new_buffer,"]",len(new_buffer))
-    # print("    SHA256: ", h.hexdigest() )
-
-    # # Save to a ASC file
-    checksum_filename = in_filename + ".asc"
-    # Reconstruct the original filename
-    only_filename = os.path.basename(in_filename) + in_extension
-    with open(checksum_filename, "w") as nf:
-        nf.write(f"{h.hexdigest()}  {only_filename}")
-
-    # Save to a binary file
-    checksum_filename = in_filename + ".chksum"
-    with open(checksum_filename, "wb") as nf:
-        nf.write(h.digest())
-
-
 def write_encode(out, s):
     out.write(s.encode())
 
@@ -105,7 +74,7 @@ def crc32(bytes, crc=0):
             crc ^= (0xEDB88320 & mask)
     return crc
 
-def create_embedded_h(filename, files, in_params_key, uncompressed=False):
+def create_embedded_h(filename, files, uncompressed=False):
     '''create a ap_romfs_embedded.h file'''
 
     out = open(filename, "wb")
@@ -115,40 +84,14 @@ def create_embedded_h(filename, files, in_params_key, uncompressed=False):
     files = sorted(list(set(files)))
     crc = {}
 
-    # Calculate the checksum of parameters
     for i in range(len(files)):
         (name, filename) = files[i]
 
-        pre, ext = os.path.splitext(filename)
-
-        # Only calculate the checksum of parameter files 
-        if ext == ".parm" or ext == ".param":            
-            # Creates the checksum file; pre + ".chksum"
-            calculate_checksum_file(pre, ext, filename)
-            break
-
-    for i in range(len(files)):
-        (name, filename) = files[i]
-
-        # ajfg
-        # It skips the checksum file
-        if name == in_params_key:
-            pre, ext = os.path.splitext(filename)
-
-            # Add to the key
-            checksum_filename = pre + ".chksum"
-            # checksum_filename = os.path.basename(pre) + ".chksum"
-            try:
-                crc[filename] = embed_file(out, checksum_filename, i, name, uncompressed)
-            except Exception as e:
-                print(e)
-                return False
-        else: 
-            try:
-                crc[filename] = embed_file(out, filename, i, name, uncompressed)
-            except Exception as e:
-                print(e)
-                return False
+        try:
+            crc[filename] = embed_file(out, filename, i, name, uncompressed)
+        except Exception as e:
+            print(e)
+            return False
         
     write_encode(out, '''const AP_ROMFS::embedded_file AP_ROMFS::files[] = {\n''')
 
@@ -173,4 +116,4 @@ if __name__ == '__main__':
         f = sys.argv[i]
         flist.append((f, f))
 
-    create_embedded_h("/tmp/ap_romfs_embedded.h", flist, "defaults.chksum")
+    create_embedded_h("/tmp/ap_romfs_embedded.h", flist)
