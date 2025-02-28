@@ -18,7 +18,6 @@
 
 #if AP_CHECK_FIRMWARE_ENABLED
 
-
 // ajfg
 #ifdef HAL_BOOTLOADER_BUILD
 #include <wolfssl/options.h>
@@ -38,6 +37,11 @@ int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigne
 
 uint8_t *find_firmware(uint32_t &out_image_size);
 uint8_t *find_parameters(uint32_t &out_image_size, unsigned char **out_parameters_address);
+
+#else 
+
+// ajfg. Copy from SHA256 WolfSSL for compilation purposess
+#define WC_SHA256_DIGEST_SIZE    32
 
 #endif
 
@@ -99,8 +103,8 @@ struct app_descriptor_unsigned {
     uint32_t image_size = 0;
     uint32_t git_hash = 0;
     // ajfg
-    uint8_t firmware_checksums[WC_SHA256_DIGEST_SIZE] = {};
-    uint8_t defaults_checksums[WC_SHA256_DIGEST_SIZE] = {};
+    uint8_t firmware_checksum[WC_SHA256_DIGEST_SIZE] = {};
+    uint8_t defaults_checksum[WC_SHA256_DIGEST_SIZE] = {};
 
     // software version number
     uint8_t version_major = APP_FW_MAJOR;
@@ -127,8 +131,8 @@ struct app_descriptor_signed {
     //       Now      264 = 8 + 256 (sigver, sig)
     uint8_t signature[264] = {};
     // ajfg
-    uint8_t firmware_checksums[WC_SHA256_DIGEST_SIZE] = {};
-    uint8_t defaults_checksums[WC_SHA256_DIGEST_SIZE] = {};
+    uint8_t firmware_checksum[WC_SHA256_DIGEST_SIZE] = {};
+    uint8_t defaults_checksum[WC_SHA256_DIGEST_SIZE] = {};
 
     // software version number
     uint8_t version_major = APP_FW_MAJOR;
@@ -145,7 +149,7 @@ typedef struct app_descriptor_signed app_descriptor_t;
 typedef struct app_descriptor_unsigned app_descriptor_t;
 #endif
 
-#define APP_DESCRIPTOR_UNSIGNED_TOTAL_LENGTH 36
+#define APP_DESCRIPTOR_UNSIGNED_TOTAL_LENGTH 36+64
 #define APP_DESCRIPTOR_SIGNED_TOTAL_LENGTH (APP_DESCRIPTOR_UNSIGNED_TOTAL_LENGTH+264+4)
 
 static_assert(sizeof(app_descriptor_unsigned) == APP_DESCRIPTOR_UNSIGNED_TOTAL_LENGTH, "app_descriptor_unsigned incorrect length");
