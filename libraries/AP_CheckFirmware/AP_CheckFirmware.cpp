@@ -349,8 +349,6 @@ extern const AP_HAL::HAL &hal;
 // ajfg
 const char *persistent_header = "{{PERSISTENT_START_V1}}\n";
 
-const char *firmware_checksum_key = "fiw=";
-const char *parameters_checksum_key = "def=";
 
 /*
   Verify the checksum of the firmware and the persistent parameters
@@ -489,15 +487,16 @@ uint8_t *find_firmware(uint32_t &out_image_size)
     }
 
     // Read Firmware checksum
-    uint8_t *firmware_checksum = (uint8_t *) memmem(ad, flash_size, 
-                                firmware_checksum_key, sizeof(firmware_checksum_key)+WC_SHA256_DIGEST_SIZE);
+    // uint8_t *firmware_checksum = (uint8_t *) memmem(ad, flash_size, 
+    //                             firmware_checksum_key, sizeof(firmware_checksum_key)+WC_SHA256_DIGEST_SIZE);
 
-    // Skip the key name; fiw=
-    firmware_checksum += sizeof(firmware_checksum_key);
+    // // Skip the key name; fiw=
+    // firmware_checksum += sizeof(firmware_checksum_key);
 
-    out_image_size = ad->image_size;
+    // out_image_size = ad->image_size;
 
-    return firmware_checksum;
+    // return firmware_checksum;
+    return nullptr;
 }
 
 // It returns the address of the are where the Persistent parameters start
@@ -520,23 +519,26 @@ uint8_t *find_parameters(uint32_t &out_image_size, unsigned char **out_parameter
     parameters_address += sizeof(persistent_header);
 
     // Read Parameters checksum
-    uint8_t *parameters_checksum = (uint8_t *) memmem(parameters_address, flash_size, 
-                                   parameters_checksum_key, sizeof(parameters_checksum_key) + WC_SHA256_DIGEST_SIZE);
+    // uint8_t *parameters_checksum = (uint8_t *) memmem(parameters_address, flash_size, 
+    //                                parameters_checksum_key, sizeof(parameters_checksum_key) + WC_SHA256_DIGEST_SIZE);
 
     // Read Firmware checksum
-    uint8_t *firmware_checksum = (uint8_t *) memmem(parameters_address, flash_size, 
-                                    firmware_checksum_key, sizeof(firmware_checksum_key)+WC_SHA256_DIGEST_SIZE);
+    // uint8_t *firmware_checksum = (uint8_t *) memmem(parameters_address, flash_size, 
+    //                                 firmware_checksum_key, sizeof(firmware_checksum_key)+WC_SHA256_DIGEST_SIZE);
 
     // Calculate the size based on the two pointers
-    uint32_t parameters_size = firmware_checksum - parameters_address;
+    //uint32_t parameters_size = firmware_checksum - parameters_address;
+    uint32_t parameters_size = 0;
+
 
     // Skip the key name; def=
-    parameters_checksum += sizeof(parameters_checksum_key);
+    //parameters_checksum += sizeof(parameters_checksum_key);
 
     *out_parameters_address = parameters_address;
     out_image_size = parameters_size;
 
-    return parameters_checksum;
+    // return parameters_checksum;
+    return nullptr;
 }
 
 #endif // HAL_BOOTLOADER_BUILD

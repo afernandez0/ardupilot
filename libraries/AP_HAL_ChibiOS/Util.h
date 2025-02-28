@@ -136,12 +136,6 @@ private:
     FlashBootloader flash_bootloader() override;
 #endif
 
-// ajfg
-#if AP_CHECK_FIRMWARE_ENABLED    
-   void get_firmware_checksum(ExpandingString &str) const;
-   void get_parameters_checksum(ExpandingString &str) const;
-#endif
-
 #ifdef ENABLE_HEAP
     static memory_heap_t scripting_heap;
 #endif // ENABLE_HEAP

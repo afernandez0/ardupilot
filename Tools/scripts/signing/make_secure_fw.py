@@ -72,75 +72,54 @@ def save_checksum(in_filename: str, in_checksum: any):
         nf.write(in_checksum.digest())
 
     return binary_name
-
-"""Update a file in the RomFS"""
-# def update_checksums_romfs(in_listfiles_filename: str, in_romfs_filename: str, in_key: str, in_new_filename: str):
-#     Logs.info('')
-
-#     Logs.info(f"Updating firmware signature in ROMFS: {in_romfs_filename}")
-#     Logs.info(f"List of files file:                   {in_listfiles_filename}")
-#     Logs.info(f"key  = {in_key}")
-#     Logs.info(f"file = {in_new_filename}")
-
-#     # Check files exist
-#     path_to_list_romfs_files = Path(in_listfiles_filename)
-#     if not path_to_list_romfs_files.is_file():
-#         Logs.error("List of files file does not exist")
-#         return
-
-#     path_to_romfs = Path(in_romfs_filename)
-#     if not path_to_romfs.is_file():
-#         Logs.error("RomFS file does not exist")
-#         return
-
-#     # Make a copy of the file 
-#     header_file = in_romfs_filename
-#     copy_header_file = header_file.replace(".", "_") + ".txt"
-
-#     print("*** Creating backup of: ", header_file)
-#     shutil.copy(header_file, copy_header_file)
-
-#     # Read current list of files and replace the firmware checksum
-#     list_files = []
-#     with open(in_listfiles_filename, "r") as rom_files:
-#         for a_file in rom_files.readlines():
-#             # print(a_file.strip())
-#             (filename, file_path) = a_file.strip().split(" ")
-
-#             if filename == in_key:
-#                 Logs.info("    Key found. Updated")
-#                 list_files += [(in_key, in_new_filename)]
-#             else:
-#                 list_files += [(filename, file_path)]
-
-
-#     # Update the list of files
-#     with open(in_listfiles_filename, "w") as rom_files:
-#         for (name, filename) in list_files:
-#             rom_files.write(f"{name} {filename}") 
-#             rom_files.write("\n") 
-
-#     # process all files with embed
-#     # Compressed files by default
-#     if not embed.create_embedded_h(in_romfs_filename, list_files, ctx.env.AP_PARAMETERS_CHECKSUM_KEY, False):
-#         Logs.error("Failed to created ap_romfs_embedded.h")
-
         
 
+def get_checksums(in_firmware_digest):
+    output_buffer = b''
+
+    # Insert Firmware Checksum
+    print("*** Adding the Firmware checksum")
+
+    output_buffer = struct.pack("<32s", digest.digest())
+    # print(digest.hexdigest())
+
+    # Insert Default Parameters checksum
+    tmp_params = [0x0] * 32
+    if sys.argv[3] is not None:   
+        print() 
+        print("*** Adding the Defaults checksum")
+
+        checksum_buffer = None
+        with open(sys.argv[3], "rb") as chk_file:
+            checksum_buffer = chk_file.read()
+
+        ba = bytearray(checksum_buffer)
+        tmp_params = struct.pack("<32s", ba)
+        # print(ba.hex())
+    
+    output_buffer = output_buffer + tmp_params
+    # print(output_buffer)
+    # print(len(output_buffer))
+
+    if len(output_buffer) != 64:
+        print("ERROR: Incorrect chekcsums length")
+        sys.exit(-1)
+
+    return output_buffer
+
+
 # =============================================================
 # =============================================================
 
-if len(sys.argv) != 6:
-    print("Usage: make_secure_fw.py   APJ_FILE   PRIVATE_KEYFILE   LIST_FILES   ROMFS_FILE   FILE_KEY")
+if len(sys.argv) != 4:
+    print("Usage: make_secure_fw.py   APJ_FILE   PRIVATE_KEYFILE    DEFAULTS_CHK_FILE")
     print(" ")
     print("Where: ")
     print("  APJ_FILE. Filename and path of the firmware in APJ format")
     print("  PRIVATE_KEY_FILE. Key file must be generated with 'generate_keys.py' script")
-    print("  LIST_FILES. Filename and path of the ile containing the list of files to be added to the RomFS. Absolute or relative path")
-    print("  ROMFS_FILE. Filename and path of the RomFS include file. Absolute or relative path")
-    print("  FILE_KEY. Key in the current ap_romfs_embedded.h file. Ie. firmware.chksum")
+    print("  DEFAULTS_CHK_FILE. Default parameters checksum file")
     print(" ")
-    # $ Tools/scripts/signing/make_secure_fw.py build/CubeOrange/bin/arducopter.apj  aa_private_key.dat romfs_files.txt build/CubeOrange/ap_romfs_embedded.h   firmware.chksum  
+    # $ Tools/scripts/signing/make_secure_fw.py build/CubeOrange/bin/arducopter.apj  aa_private_key.dat   build/CubeOrange/bin/arducopter_apj.chksum 
     # checksum file = build/CubeOrange/bin/arducopter_apj.chksum 
     sys.exit(1)
 
@@ -166,6 +145,7 @@ d = json.loads(apj)
 # get image data
 img = zlib.decompress(base64.b64decode(d['image']))
 img_len = len(img)
+print("Image size: ", len(img))
 
 read_key = decode_key("PRIVATE", open(key_file, 'r').read())
 private_key = RSA.import_key(read_key)
@@ -176,14 +156,14 @@ if private_key.size_in_bytes() != key_len:
 
 offset = img.find(descriptor)
 if offset == -1:
-    Logs.error("No APP_DESCRIPTOR found")
+    Logs.error("No Signed App Descriptor found")
     sys.exit(1)
 
 offset += 8
 # ajfg
-# NOTE: Previous 92 = 16 + 76 (siglen, sigver, sig)
-#       Now     284 = 16 + 268 (siglen, sigver, sig)
-desc_len = 284
+# NOTE: Previous 92 = 16 + 76 (siglen, sigver, sig) 
+#       Now     348 = 16 + 268 (siglen, sigver, sig) + 64 (two checksums)
+desc_len = 348
 
 digest = SHA256.new(img[:offset] + img[offset+desc_len:])
 signer = pkcs1_15.new(private_key)
@@ -203,8 +183,11 @@ if siglen != sig_len:
 # Note: length (4 bytes), signature (256 bytes) padded with zeros up to 264 bytes
 desc = struct.pack("<IQ256s", sig_len+8, sig_version, signature)
 
+# Extract the two checksums; 64 bytes 
+packed_chksums = get_checksums(digest)
+
 # 16 bytes = descriptor, crc1, crc2, img_size, git_hash
-img = img[:(offset + 16)] + desc + img[(offset + desc_len):]
+img = img[:(offset + 16)] + desc + packed_chksums + img[(offset + desc_len):]
 if len(img) != img_len:
     Logs.error("Error: Image length changed: " % (len(img), img_len))
     sys.exit(1)
@@ -223,14 +206,14 @@ f.close()
 
 Logs.info("APJ file updated: %s" % apj_file)
 
-
 # Calculate the SHA256 of the whole image
-complete_digest = SHA256.new(img)
+# complete_digest = SHA256.new(img)
 
-# Save the new checksum
-checksum_file = save_checksum(apj_file, complete_digest)
+# Save the new firmware checksum
+checksum_file = save_checksum(apj_file, digest)
 
-# Update the RomFS
-update_checksums_romfs(sys.argv[3], sys.argv[4], sys.argv[5], checksum_file)
+# open("new_boot.bin", 'wb').write(img)
 
-Logs.info("ROM FS file updated: %s" % sys.argv[4])
+
+
+

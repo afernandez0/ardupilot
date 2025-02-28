@@ -64,7 +64,7 @@ img = open(args.bootloader, 'rb').read()
 
 offset = img.find(descriptor)
 if offset == -1:
-    Logs.error("Failed to find %s ECC_RAW struct" % descriptor)
+    Logs.error("Failed to find descriptor: %s" % descriptor)
     sys.exit(1)
 
 offset += 8
@@ -112,4 +112,8 @@ for kfile in keys:
 
 # Write the updated file
 img = img[:offset] + desc + img[offset+desc_len:]
-open(sys.argv[1], 'wb').write(img)
+
+# Update the Firmware
+# open(sys.argv[1], 'wb').write(img)
+open(args.bootloader, 'wb').write(img)
+

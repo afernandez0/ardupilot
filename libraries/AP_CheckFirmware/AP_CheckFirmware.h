@@ -98,9 +98,12 @@ struct app_descriptor_unsigned {
     // total size of firmware image in bytes
     uint32_t image_size = 0;
     uint32_t git_hash = 0;
+    // ajfg
+    uint8_t firmware_checksums[WC_SHA256_DIGEST_SIZE] = {};
+    uint8_t defaults_checksums[WC_SHA256_DIGEST_SIZE] = {};
 
     // software version number
-    uint8_t  version_major = APP_FW_MAJOR;
+    uint8_t version_major = APP_FW_MAJOR;
     uint8_t version_minor = APP_FW_MINOR;
     // APJ_BOARD_ID (hardware version). This is also used in CAN NodeInfo
     // with high byte in HardwareVersion.major and low byte in HardwareVersion.minor
@@ -123,9 +126,12 @@ struct app_descriptor_signed {
     // ajfg. Previous  72 = 8 + 64 (sigver, sig)
     //       Now      264 = 8 + 256 (sigver, sig)
     uint8_t signature[264] = {};
+    // ajfg
+    uint8_t firmware_checksums[WC_SHA256_DIGEST_SIZE] = {};
+    uint8_t defaults_checksums[WC_SHA256_DIGEST_SIZE] = {};
 
     // software version number
-    uint8_t  version_major = APP_FW_MAJOR;
+    uint8_t version_major = APP_FW_MAJOR;
     uint8_t version_minor = APP_FW_MINOR;
     // APJ_BOARD_ID (hardware version). This is also used in CAN NodeInfo
     // with high byte in HardwareVersion.major and low byte in HardwareVersion.minor
@@ -153,11 +159,17 @@ static_assert(sizeof(app_descriptor_signed) == APP_DESCRIPTOR_SIGNED_TOTAL_LENGT
 #define AP_PUBLIC_KEY_MAX_KEYS 5
 #define AP_PUBLIC_KEY_SIGNATURE {0x4e, 0xcf, 0x4e, 0xa5, 0xa6, 0xb6, 0xf7, 0x29}
 
+#define RSA_SIGNATURE_LENGTH   256
+
 struct PACKED ap_secure_data {
     uint8_t sig[8] = AP_PUBLIC_KEY_SIGNATURE;
     struct PACKED {
         uint8_t key[AP_PUBLIC_KEY_LEN] = {};
     } public_key[AP_PUBLIC_KEY_MAX_KEYS];
+
+    // ajfg
+    uint8_t firmware_checksums[WC_SHA256_DIGEST_SIZE] = {};
+    uint8_t defaults_checksums[WC_SHA256_DIGEST_SIZE] = {};
 };
 #endif
 
