@@ -148,33 +148,18 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
     /*
       look over all public keys, if one matches then we are OK
      */
-    int             ret = 0;
-    wc_Sha256       sha;
-    wc_Sha256*      pSha256 = nullptr;
+    bl_data_short   firmware_data(const_cast<uint8_t *>(flash1), len1, 
+                                  const_cast<uint8_t *>(flash2), len2);
     unsigned char   digest[WC_SHA256_DIGEST_SIZE];
 
-    // Calculate the digest (sha256) of the flash memory
-    ret = wc_InitSha256(&sha);
-    if (ret != 0) {
+    if (calculate_hash(firmware_data, digest) != 0) {
         return check_fw_result_t::FAIL_REASON_HASH_FAILED;
     }
-    pSha256 = &sha;
-
-    // The hash is calculated of the two parts of the firmware
-    wc_Sha256Update(&sha, flash1, len1);
-    wc_Sha256Update(&sha, flash2, len2);
-
-    ret = wc_Sha256Final(&sha, digest);
-    if (ret != 0) {
-        return check_fw_result_t::FAIL_REASON_WOLF_INIT_FAILED;
-    }
-       
+     
+    int ret = 0;
     ret = int_check_signature(const_cast<unsigned char *>(&ad->signature[sizeof(sig_version)]), 
                                 ad->signature_length, digest, sizeof(digest));
 
-    if (pSha256 != nullptr)
-        wc_Sha256Free(pSha256);    
-        
     wolfCrypt_Cleanup();
 
     // none of the public keys matched
@@ -364,8 +349,7 @@ int32_t verify_checksums(void)
 
 int32_t verify_checksum_firmware()
 {
-    const uint8_t *flash_address = (const uint8_t *)(FLASH_LOAD_ADDRESS + (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB)*1024);
-    
+    // Get the firmware checksum  
     uint32_t image_size = 0;
     uint8_t *firmware_checksum = find_firmware(image_size);
 
@@ -373,10 +357,16 @@ int32_t verify_checksum_firmware()
         return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND) * -1);
     }
 
+    // Get area of the Firmware
+    bl_data_short firmware_data;
+    if (get_firmware_location(firmware_data) != 0) {
+        return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND) * -1);
+    }
+        
     // Calculate checksum sha256 of the firmware   
     unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
 
-    calculate_hash(flash_address, image_size, calculated_hash);
+    calculate_hash(firmware_data, calculated_hash);
 
     // Compare checksums
     if (memcmp(firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
@@ -435,8 +425,6 @@ int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigne
         return -4;
     }
 
-    // unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
-
     ret = wc_Sha256Final(&sha256, out_buffer);
     if (ret != 0) {
         // TODO
@@ -445,6 +433,33 @@ int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigne
     }
         
     wc_Sha256Free(&sha256);
+
+    return 0;
+}
+
+int32_t calculate_hash(const bl_data_short &in_location, unsigned char *out_buffer)
+{
+    int             ret = -1;
+    wc_Sha256       sha;
+
+    // Calculate the digest (sha256) of the flash memory
+    ret = wc_InitSha256(&sha);
+    if (ret != 0) {
+        // return check_fw_result_t::FAIL_REASON_HASH_FAILED;
+        return -3;
+    }
+
+    // The hash is calculated of the two parts of the firmware
+    wc_Sha256Update(&sha, in_location.data1, in_location.length1);
+    wc_Sha256Update(&sha, in_location.data2, in_location.length2);
+
+    ret = wc_Sha256Final(&sha, out_buffer);
+    if (ret != 0) {
+        // return check_fw_result_t::FAIL_REASON_WOLF_INIT_FAILED;
+        return -5;
+    }
+
+    wc_Sha256Free(&sha);
 
     return 0;
 }
@@ -466,21 +481,56 @@ uint8_t *find_firmware(uint32_t &out_image_size)
         return nullptr;
     }
 
-    /*
-    Alternative:
-    const uint32_t page_size = hal.flash->getpagesize(0);
-    const uint32_t flash_addr = hal.flash->getpageaddr(0);
-    const uint8_t *flash = (const uint8_t *)flash_addr;
-    const uint8_t key[] = AP_PUBLIC_KEY_SIGNATURE;
-    const struct ap_secure_data *kk = (const struct ap_secure_data *)memmem(flash, page_size, key, sizeof(key));
-    */
-
     // Check firmware size
     if (ad->image_size > flash_size) {
         return nullptr;
     }
 
     return const_cast<uint8_t *>(ad->firmware_checksum);
+}
+
+uint32_t get_firmware_location(bl_data_short &out_firmware_data)
+{
+    // Look for the Application Descriptor
+#if AP_SIGNED_FIRMWARE
+    const uint8_t sig[8] = AP_APP_DESCRIPTOR_SIGNATURE_SIGNED;
+#else    
+    const uint8_t sig[8] = AP_APP_DESCRIPTOR_SIGNATURE_UNSIGNED;
+#endif
+
+    const uint8_t *flash1 = (const uint8_t *)(FLASH_LOAD_ADDRESS + (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB)*1024);
+    const uint32_t flash_size = (BOARD_FLASH_SIZE - (FLASH_BOOTLOADER_LOAD_KB + APP_START_OFFSET_KB))*1024;
+    const app_descriptor_signed *ad = (const app_descriptor_signed *)memmem(flash1, flash_size-sizeof(app_descriptor_signed), sig, sizeof(sig));
+
+    if (ad == nullptr) {
+        // no application signature
+        return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_NO_APP_SIG) * -1);
+    }
+
+
+    const uint8_t *flash2 = (const uint8_t *)&ad->version_major;
+    const uint32_t desc_len = offsetof(app_descriptor_signed, version_major) - offsetof(app_descriptor_signed, image_crc1);
+    const uint32_t len1 = ((const uint8_t *)&ad->image_crc1) - flash1;
+
+    if ((len1 + desc_len) > ad->image_size) {
+        return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_BAD_LENGTH_DESCRIPTOR) * -1);
+    }
+
+    const uint32_t len2 = ad->image_size - (len1 + desc_len);
+
+    // Fill output structure
+    out_firmware_data.length1 = len1;
+    out_firmware_data.data1   = const_cast<uint8_t *>(flash1);
+
+    // TBC
+    out_firmware_data.offset2 = desc_len;
+    
+    out_firmware_data.length2 = len2;
+    out_firmware_data.data2   = const_cast<uint8_t *>(flash2);
+    
+    out_firmware_data.image_size = ad->image_size;
+
+    return 0;
 }
 
 // It returns the address of the are where the Persistent parameters start

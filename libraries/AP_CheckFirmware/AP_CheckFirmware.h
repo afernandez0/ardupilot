@@ -29,13 +29,40 @@
 #include <wolfssl/wolfcrypt/asn_public.h>
 
 // ajfg
+
+struct bl_data_short {
+    uint32_t length1;
+    uint8_t *data1;
+
+    uint32_t offset2;
+    
+    uint32_t length2;
+    uint8_t *data2;
+    
+    uint32_t image_size;
+
+    bl_data_short() : data1(nullptr), length1(0),
+        data2(nullptr), length2(0),
+        offset2(0), image_size(0)
+    {}
+    bl_data_short(uint8_t *in_data1, uint32_t in_length1,
+        uint8_t *in_data2, uint32_t in_length2) : data1(in_data1), length1(in_length1),
+        data2(in_data2), length2(in_length2),
+        offset2(0), image_size(0)
+    {}    
+};
+
 int32_t verify_checksums(void);
 int32_t verify_checksum_firmware();
 int32_t verify_checksum_parameters();
 
 int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigned char *out_buffer);
 
+int32_t calculate_hash(const bl_data_short &in_location, unsigned char *out_buffer);
+
+
 uint8_t *find_firmware(uint32_t &out_image_size);
+uint32_t get_firmware_location(bl_data_short &out_firmware_data);
 uint8_t *find_parameters(uint32_t &out_image_size, unsigned char **out_parameters_address);
 
 #else 
