@@ -74,6 +74,23 @@ def save_checksum(in_filename: str, in_checksum: any):
     return binary_name
         
 
+def save_signature(in_filename: str, in_signature: any):
+    pre, ext = os.path.splitext(in_filename)
+
+    # Save the ASC file 
+    new_name = in_filename.replace(".", "_") + ".sign.asc"
+    with open(new_name, "w") as nf:
+        nf.write( f"{in_signature.hex()}  {in_filename}")  
+
+    # Save the binary file 
+    binary_name = in_filename.replace(".", "_") + ".sign"
+    with open(binary_name, "wb") as nf:
+        # nf.write( bytes.fromhex(line_parts[0]) )
+        nf.write(in_signature)
+
+    return binary_name 
+
+
 def get_checksums(in_firmware_digest):
     output_buffer = b''
 
@@ -211,6 +228,10 @@ Logs.info("APJ file updated: %s" % apj_file)
 
 # Save the new firmware checksum
 checksum_file = save_checksum(apj_file, digest)
+
+# Save the signature
+signature_file = save_signature(apj_file, signature)
+Logs.info("Firmware signature saved into file: %s", signature_file)
 
 # open("new_boot.bin", 'wb').write(img)
 
