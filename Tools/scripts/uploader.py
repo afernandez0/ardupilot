@@ -988,15 +988,23 @@ class uploader(object):
         return (signature_buffer, length)
 
     def __verify_signature(self, in_filename):
+        print("\nVerifying signature")
+
         # Read the signature from the file
         (signature_buffer, length) = self.__load_file(in_filename)
         if signature_buffer is None:
             return False
 
+        print("\nSignature read from file")
+
         self.__send(uploader.VERIFY_SIGNATURE)
         self.__send(length)
         self.__send(signature_buffer)
+        print("\nSent ", length, " bytes to board")
+
         self.__send(uploader.EOC)
+
+        print("\nWaiting for synch")
         self.__getSync()
 
         return True
@@ -1011,6 +1019,8 @@ class uploader(object):
 
 
     def __update_firmware_checksum(self, in_filename):
+        print("\nUpdating Firmware checksum")
+
         # Read the checksum from the file
         (checksum_buffer, length) = self.__load_file(in_filename)
         if checksum_buffer is None:
@@ -1019,11 +1029,15 @@ class uploader(object):
         self.__send(uploader.UPDATE_CHECKSUM)
         self.__send(length)
         self.__send(checksum_buffer)
+        print("\nSent ", length, " bytes to board")
         self.__send(uploader.EOC)
+        print("\nWaiting for synch")
         self.__getSync()
         return True
 
     def __update_parameters_checksum(self, in_filename):
+        print("\nUpdating Parameters checksum")
+
         # Read the checksum from the file
         (checksum_buffer, length) = self.__load_file(in_filename)
         if checksum_buffer is None:
@@ -1032,7 +1046,9 @@ class uploader(object):
         self.__send(uploader.UPDATE_PARAMETERS_CHECKSUM)
         self.__send(length)
         self.__send(checksum_buffer)
+        print("\nSent ", length, " bytes to board")
         self.__send(uploader.EOC)
+        print("\nWaiting for synch")
         self.__getSync()
         return True
 
