@@ -1288,10 +1288,16 @@ bootloader(unsigned timeout)
             }
             uprintf("   EOC\n");
 
-            const uint8_t *firmware_address = (const uint8_t *)(APP_START_ADDRESS);
-            uprintf("   addr=%x\n", int(firmware_address));
 
-            if (calculate_hash(firmware_address, firmware_size, calculated_hash) != 0) {
+            // Calculate the hash
+            bl_data_short firmware_data;
+
+            if (get_firmware_location(firmware_data) != 0) {
+                goto cmd_fail;
+            }
+            uprintf("   addr=%x  %x\n", int(firmware_data.data1),  int(firmware_data.data2));
+
+            if (calculate_hash(firmware_data, calculated_hash) != 0) {
                 goto cmd_fail;
             }
             uprintf("   hash=%02x %02x\n", calculated_hash[0], calculated_hash[31]);

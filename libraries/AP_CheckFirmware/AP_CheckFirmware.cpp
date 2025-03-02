@@ -145,17 +145,18 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
         return check_fw_result_t::FAIL_REASON_WOLF_INIT_FAILED;
     }
 
-    /*
-      look over all public keys, if one matches then we are OK
-     */
+    // Calculate firmware hash
     bl_data_short   firmware_data(const_cast<uint8_t *>(flash1), len1, 
-                                  const_cast<uint8_t *>(flash2), len2);
+    const_cast<uint8_t *>(flash2), len2);
     unsigned char   digest[WC_SHA256_DIGEST_SIZE];
-
+    
     if (calculate_hash(firmware_data, digest) != 0) {
         return check_fw_result_t::FAIL_REASON_HASH_FAILED;
     }
-     
+    
+    /*
+      look over all public keys, if one matches then we are OK
+     */
     int ret = 0;
     ret = int_check_signature(const_cast<unsigned char *>(&ad->signature[sizeof(sig_version)]), 
                                 ad->signature_length, digest, sizeof(digest));
