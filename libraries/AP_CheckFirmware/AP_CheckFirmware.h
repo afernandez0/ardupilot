@@ -197,10 +197,6 @@ struct PACKED ap_secure_data {
     struct PACKED {
         uint8_t key[AP_PUBLIC_KEY_LEN] = {};
     } public_key[AP_PUBLIC_KEY_MAX_KEYS];
-
-    // ajfg
-    uint8_t firmware_checksums[WC_SHA256_DIGEST_SIZE] = {};
-    uint8_t defaults_checksums[WC_SHA256_DIGEST_SIZE] = {};
 };
 #endif
 
