@@ -34,7 +34,7 @@
 #if HAL_WITH_ESC_TELEM
 #include <AP_ESC_Telem/AP_ESC_Telem.h>
 #endif
-#ifdef HAL_PERIPH_ENABLE_RTC
+#if AP_PERIPH_RTC_ENABLED
 #include <AP_RTC/AP_RTC.h>
 #endif
 #include <AP_RCProtocol/AP_RCProtocol_config.h>
@@ -47,8 +47,8 @@
 #endif
 #include <AP_AHRS/AP_AHRS.h>
 
-#ifdef HAL_PERIPH_ENABLE_RELAY
-#ifdef HAL_PERIPH_ENABLE_PWM_HARDPOINT
+#if AP_PERIPH_RELAY_ENABLED
+#if AP_PERIPH_PWM_HARDPOINT_ENABLED
     #error "Relay and PWM_HARDPOINT both use hardpoint message"
 #endif
 #include <AP_Relay/AP_Relay.h>
@@ -77,27 +77,27 @@
 #define AP_PERIPH_HAVE_LED_WITHOUT_NOTIFY
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_NOTIFY
-    #if !defined(HAL_PERIPH_ENABLE_RC_OUT) && !defined(HAL_PERIPH_NOTIFY_WITHOUT_RCOUT)
-        #error "HAL_PERIPH_ENABLE_NOTIFY requires HAL_PERIPH_ENABLE_RC_OUT"
+#if AP_PERIPH_NOTIFY_ENABLED
+    #if !AP_PERIPH_RC_OUT_ENABLED && !defined(HAL_PERIPH_NOTIFY_WITHOUT_RCOUT)
+        #error "AP_PERIPH_NOTIFY_ENABLED requires AP_PERIPH_RC_OUT_ENABLED"
     #endif
     #ifdef HAL_PERIPH_ENABLE_BUZZER_WITHOUT_NOTIFY
-        #error "You cannot enable HAL_PERIPH_ENABLE_NOTIFY and HAL_PERIPH_ENABLE_BUZZER_WITHOUT_NOTIFY at the same time. Notify already includes it"
+        #error "You cannot enable AP_PERIPH_NOTIFY_ENABLED and HAL_PERIPH_ENABLE_BUZZER_WITHOUT_NOTIFY at the same time. Notify already includes it"
     #endif
     #ifdef AP_PERIPH_HAVE_LED_WITHOUT_NOTIFY
-        #error "You cannot enable HAL_PERIPH_ENABLE_NOTIFY and any HAL_PERIPH_ENABLE_<device>_LED_WITHOUT_NOTIFY at the same time. Notify already includes them all"
+        #error "You cannot enable AP_PERIPH_NOTIFY_ENABLED and any HAL_PERIPH_ENABLE_<device>_LED_WITHOUT_NOTIFY at the same time. Notify already includes them all"
     #endif
     #ifdef HAL_PERIPH_NEOPIXEL_CHAN_WITHOUT_NOTIFY
-        #error "You cannot use HAL_PERIPH_ENABLE_NOTIFY and HAL_PERIPH_NEOPIXEL_CHAN_WITHOUT_NOTIFY at the same time. Notify already includes it. Set param OUTx_FUNCTION=120"
+        #error "You cannot use AP_PERIPH_NOTIFY_ENABLED and HAL_PERIPH_NEOPIXEL_CHAN_WITHOUT_NOTIFY at the same time. Notify already includes it. Set param OUTx_FUNCTION=120"
     #endif
 #endif
 
-#if defined(HAL_PERIPH_ENABLE_RPM_STREAM) && !defined(HAL_PERIPH_ENABLE_RPM)
-    #error "HAL_PERIPH_ENABLE_RPM_STREAM requires HAL_PERIPH_ENABLE_RPM"
+#if AP_PERIPH_RPM_STREAM_ENABLED && !AP_PERIPH_RPM_ENABLED
+    #error "AP_PERIPH_RPM_STREAM_ENABLED requires AP_PERIPH_RPM_ENABLED"
 #endif
 
 #ifndef AP_PERIPH_SAFETY_SWITCH_ENABLED
-#define AP_PERIPH_SAFETY_SWITCH_ENABLED defined(HAL_PERIPH_ENABLE_RC_OUT)
+#define AP_PERIPH_SAFETY_SWITCH_ENABLED AP_PERIPH_RC_OUT_ENABLED
 #endif
 
 #ifndef HAL_PERIPH_CAN_MIRROR
@@ -174,7 +174,7 @@ public:
     void send_relposheading_msg();
     void can_baro_update();
     void can_airspeed_update();
-#ifdef HAL_PERIPH_ENABLE_IMU
+#if AP_PERIPH_IMU_ENABLED
     void can_imu_update();
 #endif
 
@@ -192,7 +192,7 @@ public:
     void prepare_reboot();
     bool canfdout() const { return (g.can_fdmode == 1); }
 
-#ifdef HAL_PERIPH_ENABLE_EFI
+#if AP_PERIPH_EFI_ENABLED
     void can_efi_update();
 #endif
 
@@ -235,19 +235,19 @@ public:
     AP_Baro baro;
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_IMU
+#if AP_PERIPH_IMU_ENABLED
     AP_InertialSensor imu;
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_RPM
+#if AP_PERIPH_RPM_ENABLED
     AP_RPM rpm_sensor;
     uint32_t rpm_last_update_ms;
-#ifdef HAL_PERIPH_ENABLE_RPM_STREAM
+#if AP_PERIPH_RPM_STREAM_ENABLED
     void rpm_sensor_send();
     uint32_t rpm_last_send_ms;
     uint8_t rpm_last_sent_index;
 #endif
-#endif // HAL_PERIPH_ENABLE_RPM
+#endif // AP_PERIPH_RPM_ENABLED
 
 #if AP_PERIPH_BATTERY_ENABLED
     void handle_battery_failsafe(const char* type_str, const int8_t action) { }
@@ -265,7 +265,7 @@ public:
     AP_CAN::Protocol can_protocol_cached[HAL_NUM_CAN_IFACES];
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_MSP
+#if AP_PERIPH_MSP_ENABLED
     struct {
         AP_MSP msp;
         MSP::msp_port_t port;
@@ -283,7 +283,7 @@ public:
     void send_msp_airspeed(void);
 #endif
     
-#ifdef HAL_PERIPH_ENABLE_ADSB
+#if AP_PERIPH_ADSB_ENABLED
     void adsb_init();
     void adsb_update();
     void can_send_ADSB(struct __mavlink_adsb_vehicle_t &msg);
@@ -294,7 +294,7 @@ public:
     } adsb;
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_AIRSPEED
+#if AP_PERIPH_AIRSPEED_ENABLED
     AP_Airspeed airspeed;
 #endif
 
@@ -304,11 +304,11 @@ public:
     uint32_t last_rangefinder_sample_ms[RANGEFINDER_MAX_INSTANCES];
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_PROXIMITY
+#if AP_PERIPH_PROXIMITY_ENABLED
     AP_Proximity proximity;
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_PWM_HARDPOINT
+#if AP_PERIPH_PWM_HARDPOINT_ENABLED
     void pwm_irq_handler(uint8_t pin, bool pin_state, uint32_t timestamp);
     void pwm_hardpoint_init();
     void pwm_hardpoint_update();
@@ -321,12 +321,12 @@ public:
     } pwm_hardpoint;
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_HWESC
+#if AP_PERIPH_HOBBYWING_ESC_ENABLED
     HWESC_Telem hwesc_telem;
     void hwesc_telem_update();
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_EFI
+#if AP_PERIPH_EFI_ENABLED
     AP_EFI efi;
     uint32_t efi_update_ms;
 #endif
@@ -340,7 +340,7 @@ public:
     void apd_esc_telem_update();
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_RC_OUT
+#if AP_PERIPH_RC_OUT_ENABLED
 #if HAL_WITH_ESC_TELEM
     AP_ESC_Telem esc_telem;
     uint8_t get_motor_number(const uint8_t esc_number) const;
@@ -369,7 +369,7 @@ public:
     void rcout_handle_safety_state(uint8_t safety_state);
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_RCIN
+#if AP_PERIPH_RCIN_ENABLED
     void rcin_init();
     void rcin_update();
     void can_send_RCInput(uint8_t quality, uint16_t *values, uint8_t nvalues, bool in_failsafe, bool quality_valid);
@@ -384,7 +384,7 @@ public:
     BattBalance battery_balance;
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_SERIAL_OPTIONS
+#if AP_PERIPH_SERIAL_OPTIONS_ENABLED
     SerialOptions serial_options;
 #endif
     
@@ -397,10 +397,10 @@ public:
 #endif
 #endif
 
-#if defined(HAL_PERIPH_ENABLE_NOTIFY) || defined(HAL_PERIPH_NEOPIXEL_COUNT_WITHOUT_NOTIFY)
+#if AP_PERIPH_NOTIFY_ENABLED || defined(HAL_PERIPH_NEOPIXEL_COUNT_WITHOUT_NOTIFY)
     void update_rainbow();
 #endif
-#ifdef HAL_PERIPH_ENABLE_NOTIFY
+#if AP_PERIPH_NOTIFY_ENABLED
     // notification object for LEDs, buzzers etc
     AP_Notify notify;
     uint64_t vehicle_state = 1; // default to initialisation
@@ -425,11 +425,11 @@ public:
     AP_Logger logger;
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_NETWORKING
+#if AP_PERIPH_NETWORKING_ENABLED
     Networking_Periph networking_periph;
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_RTC
+#if AP_PERIPH_RTC_ENABLED
     AP_RTC rtc;
 #endif
 
@@ -437,7 +437,7 @@ public:
     GCS_Periph _gcs;
 #endif
 
-#ifdef HAL_PERIPH_ENABLE_RELAY
+#if AP_PERIPH_RELAY_ENABLED
     AP_Relay relay;
 #endif
 
@@ -446,7 +446,7 @@ public:
 
     static const AP_Param::Info var_info[];
 
-#ifdef HAL_PERIPH_ENABLE_EFI
+#if AP_PERIPH_EFI_ENABLED
     uint32_t last_efi_update_ms;
 #endif
 #if AP_PERIPH_MAG_ENABLED
@@ -460,7 +460,7 @@ public:
 #if AP_PERIPH_BARO_ENABLED
     uint32_t last_baro_update_ms;
 #endif
-#ifdef HAL_PERIPH_ENABLE_AIRSPEED
+#if AP_PERIPH_AIRSPEED_ENABLED
     uint32_t last_airspeed_update_ms;
 #endif
 #if AP_PERIPH_GPS_ENABLED

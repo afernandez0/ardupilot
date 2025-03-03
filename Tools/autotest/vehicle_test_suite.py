@@ -4,7 +4,6 @@ Common base class for each of the autotest suites
 AP_FLAKE8_CLEAN
 
 '''
-from __future__ import print_function
 
 import abc
 import copy
@@ -5612,7 +5611,7 @@ class TestSuite(ABC):
             16: 1500,
         }
 
-    def set_rc_from_map(self, _map, timeout=20):
+    def set_rc_from_map(self, _map, timeout=20, quiet=False):
         map_copy = _map.copy()
         for v in map_copy.values():
             if not isinstance(v, int):
@@ -5639,7 +5638,8 @@ class TestSuite(ABC):
                     bad_channels += " (ch=%u want=%u got=%u)" % (chan, map_copy[chan], chan_pwm)
                     break
             if len(bad_channels) == 0:
-                self.progress("RC values good")
+                if not quiet:
+                    self.progress("RC values good")
                 break
             self.progress("RC values bad:%s" % bad_channels)
             if not self.rc_thread.is_alive():
@@ -7900,6 +7900,12 @@ class TestSuite(ABC):
             **kwargs
         )
 
+    def get_local_position_NED(self):
+        '''return a Vector3 repreesenting vehicle position relative to
+        origin in metres, NED'''
+        pos = self.assert_receive_message('LOCAL_POSITION_NED', timeout=1)
+        return Vector3(pos.x, pos.y, pos.z)
+
     def distance_to_local_position(self, local_pos, timeout=30):
         (x, y, z_down) = local_pos  # alt is *up*
 
@@ -9311,6 +9317,19 @@ Also, ignores heartbeats not from our target system'''
                                        (mavutil.mavlink.enums["MAV_MISSION_RESULT"][m.type].name),)
         self.progress("Upload of all %u items succeeded" % len(items))
 
+    def assert_fetch_mission_item_int(self, target_system, target_component, seq, mission_type):
+        self.mav.mav.mission_request_int_send(target_system,
+                                              target_component,
+                                              seq,
+                                              mission_type)
+        m = self.assert_receive_message(
+            'MISSION_ITEM_INT',
+            condition=f'MISSION_ITEM_INT.mission_type=={mission_type}',
+        )
+        if m is None:
+            raise NotAchievedException("Did not receive MISSION_ITEM_INT")
+        return m
+
     def download_using_mission_protocol(self, mission_type, verbose=False, timeout=10):
         '''mavlink2 required'''
         target_system = 1
@@ -9362,16 +9381,7 @@ Also, ignores heartbeats not from our target system'''
                 return items
             self.progress("Requesting item %u (remaining=%u)" %
                           (next_to_request, len(remaining_to_receive)))
-            self.mav.mav.mission_request_int_send(target_system,
-                                                  target_component,
-                                                  next_to_request,
-                                                  mission_type)
-            m = self.mav.recv_match(type='MISSION_ITEM_INT',
-                                    blocking=True,
-                                    timeout=5,
-                                    condition='MISSION_ITEM_INT.mission_type==%u' % mission_type)
-            if m is None:
-                raise NotAchievedException("Did not receive MISSION_ITEM_INT")
+            m = self.assert_fetch_mission_item_int(target_system, target_component, next_to_request, mission_type)
             if m.target_system != self.mav.source_system:
                 raise NotAchievedException("Wrong target system (want=%u got=%u)" %
                                            (self.mav.source_system, m.target_system))

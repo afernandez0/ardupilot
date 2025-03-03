@@ -26,15 +26,11 @@
 // This could be removed once the build system allows for APM_BUILD_TYPE in header files
 // note that this is re-definition of the one in AP_Airspeed.cpp, can't be shared as vehicle dependences cant go in header files
 #ifndef AP_AIRSPEED_DUMMY_METHODS_ENABLED
-#define AP_AIRSPEED_DUMMY_METHODS_ENABLED ((APM_BUILD_COPTER_OR_HELI && BOARD_FLASH_SIZE <= 1024) || \
+#define AP_AIRSPEED_DUMMY_METHODS_ENABLED ((APM_BUILD_COPTER_OR_HELI && HAL_PROGRAM_SIZE_LIMIT_KB <= 1024) || \
                                             APM_BUILD_TYPE(APM_BUILD_AntennaTracker) || APM_BUILD_TYPE(APM_BUILD_Blimp))
 #endif
 
 #if !AP_AIRSPEED_DUMMY_METHODS_ENABLED
-
-#if CONFIG_HAL_BOARD_SUBTYPE == HAL_BOARD_SUBTYPE_LINUX_DISCO
-#define PSI_RANGE_DEFAULT 0.05
-#endif
 
 #ifndef PSI_RANGE_DEFAULT
 #define PSI_RANGE_DEFAULT 1.0f

@@ -4,7 +4,6 @@ Fly Copter in SITL
 AP_FLAKE8_CLEAN
 '''
 
-from __future__ import print_function
 import copy
 import math
 import os
@@ -1094,6 +1093,38 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
         self.set_parameter("SIM_RC_FAIL", 0)
         self.reboot_sitl()
         self.end_subtest("Completed battery failsafe critical landing")
+
+        # Trigger low battery condition with failsafe set to brake/land
+        self.start_subtest("Battery failsafe brake/land")
+        self.context_push()
+        self.takeoffAndMoveAway()
+        self.set_parameter('BATT_FS_LOW_ACT', 7)
+        self.delay_sim_time(10)
+        self.change_mode('LOITER')
+        self.set_rc(1, 2000)
+        self.wait_groundspeed(8, 10)
+        self.set_parameter('SIM_BATT_VOLTAGE', 11.4)
+        self.wait_statustext("Battery 1 is low", timeout=60)
+        self.wait_mode('BRAKE')
+        self.set_rc(1, 1500)
+        self.disarm_vehicle(force=True)
+        self.context_pop()
+        self.reboot_sitl()
+        self.end_subtest("Completed brake/land failsafe test")
+
+        self.start_subtest("Battery failsafe brake/land - land")
+        self.context_push()
+        self.takeoffAndMoveAway()
+        self.set_parameter('BATT_FS_LOW_ACT', 7)
+        self.set_parameter('SIM_GPS1_ENABLE', 0)
+        self.delay_sim_time(10)
+        self.set_parameter('SIM_BATT_VOLTAGE', 11.4)
+        self.wait_statustext("Battery 1 is low", timeout=60)
+        self.wait_mode('LAND')
+        self.disarm_vehicle(force=True)
+        self.reboot_sitl()
+        self.context_pop()
+        self.end_subtest("Completed brake/land failsafe test")
 
         # Trigger low battery condition with failsafe set to terminate. Copter will disarm and crash.
         self.start_subtest("Battery failsafe terminate")
@@ -8892,8 +8923,15 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
         self.fly_rangefinder_mavlink()
         self.fly_rangefinder_sitl()  # i.e. type 100
 
+        class I2CDriverToTest:
+            def __init__(self, name, rngfnd_type, rngfnd_addr=None):
+                self.name = name
+                self.rngfnd_type = rngfnd_type
+                self.rngfnd_addr = rngfnd_addr
+
         i2c_drivers = [
-            ("maxbotixi2cxl", 2),
+            I2CDriverToTest("maxbotixi2cxl", 2),
+            I2CDriverToTest("terarangeri2c", 14, rngfnd_addr=0x31),
         ]
         while len(i2c_drivers):
             do_drivers = i2c_drivers[0:9]
@@ -8901,14 +8939,15 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             count = 1
             p = {}
             for d in do_drivers:
-                (sim_name, rngfnd_param_value) = d
-                p["RNGFND%u_TYPE" % count] = rngfnd_param_value
+                p[f"RNGFND{count}_TYPE"] = d.rngfnd_type
+                if d.rngfnd_addr is not None:
+                    p[f"RNGFND{count}_ADDR"] = d.rngfnd_addr
                 count += 1
 
             self.set_parameters(p)
 
             self.reboot_sitl()
-            self.fly_rangefinder_drivers_fly([x[0] for x in do_drivers])
+            self.fly_rangefinder_drivers_fly([x.name for x in do_drivers])
 
     def RangeFinderDriversMaxAlt(self):
         '''test max-height behaviour'''
@@ -9868,6 +9907,47 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
                 raise NotAchievedException("Bug reproduced - returned to near origin")
         self.wait_disarmed()
         self.reboot_sitl()
+
+    def RTL_ALT_FINAL(self):
+        '''Test RTL with RTL_ALT_FINAL'''
+        self.progress("arm the vehicle and takeoff in Guided")
+        self.takeoff(20, mode='GUIDED')
+
+        # Set home current location, this gives a large home vs orgin difference
+        self.set_home(self.mav.location())
+
+        self.progress("fly 50m North (or whatever)")
+        self.fly_guided_move_local(50, 0, 50)
+        target_alt = 10
+        self.set_parameter('RTL_ALT_FINAL', target_alt * 100)
+
+        self.progress("Waiting RTL to reach Home and hold")
+        self.change_mode('RTL')
+
+        # Expecting to return and hold 10m above home
+        tstart = self.get_sim_time()
+        reachedHome = False
+        while self.get_sim_time_cached() < tstart + 250:
+            m = self.mav.recv_match(type='GLOBAL_POSITION_INT', blocking=True)
+            alt = m.relative_alt / 1000.0 # mm -> m
+            home_distance = self.distance_to_home(use_cached_home=True)
+            home = math.sqrt((alt-target_alt)**2 + home_distance**2) < 2
+            if home and not reachedHome:
+                reachedHome = True
+                self.progress("Reached home - holding")
+                self.delay_sim_time(20)
+                continue
+
+            if reachedHome:
+                if not home:
+                    raise NotAchievedException("Should still be at home")
+                if not self.armed():
+                    raise NotAchievedException("Should still be armed")
+                break
+
+        self.progress("Hold at home successful - landing")
+        self.change_mode("LAND")
+        self.wait_landed_and_disarmed()
 
     def SMART_RTL(self):
         '''Check SMART_RTL'''
@@ -11802,6 +11882,36 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
 
         self.do_RTL()
 
+    def Ch6TuningLoitMaxXYSpeed(self):
+        '''test loiter can be changed via Ch6 tuning knob'''
+        self.set_parameters({
+            "RC6_OPTION": 219,  # RC6 used for tuning
+            "TUNE": 60,  # 60 is x/y loiter speed
+            "TUNE_MIN": 0.02,  # 20cm/s
+            "TUNE_MAX": 1000,  # 10m/s
+            "AUTO_OPTIONS": 3,
+        })
+        self.set_rc(6, 2000)
+
+        self.takeoff(mode='LOITER')
+
+        self.set_rc(2, 1000)
+
+        self.wait_groundspeed(9.5, 10.5, minimum_duration=5)
+
+        self.set_rc(6, 1500)
+        self.wait_groundspeed(4.5, 5.5, minimum_duration=5)
+
+        self.set_rc(6, 2000)
+        self.wait_groundspeed(9.5, 10.5, minimum_duration=5)
+
+        self.set_rc(6, 1300)
+        self.wait_groundspeed(2.5, 3.5, minimum_duration=5)
+
+        self.set_rc(2, 1500)
+
+        self.do_RTL()
+
     def PILOT_THR_BHV(self):
         '''test the PILOT_THR_BHV parameter'''
         self.start_subtest("Test default behaviour, no disarm on land")
@@ -12542,6 +12652,8 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             'COMPASS_USE3': 0,
         })
         self.assert_parameter_value("COMPASS_OFS_X", 20, epsilon=30)
+        # set the parameter so it gets reset at context pop time:
+        self.set_parameter("COMPASS_OFS_X", 20)
         new_compass_ofs_x = 200
         self.set_parameters({
             "SIM_MAG1_OFS_X": new_compass_ofs_x,
@@ -12574,6 +12686,139 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
         self.reboot_sitl()
         self.assert_parameter_value("COMPASS_OFS_X", new_compass_ofs_x, epsilon=30)
 
+    def AHRSAutoTrim(self):
+        '''calibrate AHRS trim using RC input'''
+        self.progress("Making earth frame same as body frame")  # because I'm lazy
+        self.takeoff(5, mode='GUIDED')
+        self.guided_achieve_heading(0)
+        self.do_land()
+
+        self.set_parameters({
+            'RC9_OPTION': 182,
+        })
+
+        param_last_check_time = 0
+        for mode in ['STABILIZE', 'ALT_HOLD']:
+            self.set_parameters({
+                'AHRS_TRIM_X': 0.1,
+                'AHRS_TRIM_Y': -0.1,
+            })
+            self.takeoff(mode=mode)
+            self.set_rc(9, 2000)
+            tstart = self.get_sim_time()
+            while True:
+                now = self.get_sim_time_cached()
+                if now - tstart > 30:
+                    raise ValueError(f"Failed to reduce trims in {mode}!")
+                lpn = self.assert_receive_message('LOCAL_POSITION_NED')
+                delta = 40
+                roll_input = 1500
+                if lpn.vx > 0:
+                    roll_input -= delta
+                elif lpn.vx < 0:
+                    roll_input += delta
+
+                pitch_input = 1500
+                if lpn.vy > 0:
+                    pitch_input += delta
+                elif lpn.vy < 0:
+                    pitch_input -= delta
+                self.set_rc_from_map({
+                    1: roll_input,
+                    2: pitch_input,
+                }, quiet=True)
+
+                # check parameters once/second:
+                if now - param_last_check_time > 1:
+                    param_last_check_time = now
+                    trim_x = self.get_parameter('AHRS_TRIM_X', verbose=False)
+                    trim_y = self.get_parameter('AHRS_TRIM_Y', verbose=False)
+                    self.progress(f"trim_x={trim_x} trim_y={trim_y}")
+                    if abs(trim_x) < 0.01 and abs(trim_y) < 0.01:
+                        self.progress("Good AHRS trims")
+                        self.progress(f"vx={lpn.vx} vy={lpn.vy}")
+                        if abs(lpn.vx) > 1 or abs(lpn.vy) > 1:
+                            raise NotAchievedException("Velocity after trimming?!")
+                        break
+            self.context_collect('STATUSTEXT')
+            self.set_rc(9, 1000)
+            self.wait_statustext('Trim saved', check_context=True)
+            self.context_stop_collecting('STATUSTEXT')
+            self.do_land()
+            self.set_rc_default()
+
+        self.progress("Landing should cancel the autotrim")
+        self.takeoff(10, mode='STABILIZE')
+        self.context_collect('STATUSTEXT')
+        self.set_rc(9, 2000)
+        self.wait_statustext('AutoTrim running', check_context=True)
+        self.do_land()
+        self.wait_statustext('AutoTrim cancelled', check_context=True)
+        self.set_rc(9, 1000)
+
+        self.progress("Changing mode to LOITER")
+        self.takeoff(10, mode='STABILIZE')
+        self.context_collect('STATUSTEXT')
+        self.set_rc(9, 2000)
+        self.wait_statustext('AutoTrim running', check_context=True)
+        self.change_mode('LOITER')
+        self.wait_statustext('AutoTrim cancelled', check_context=True)
+        self.do_land()
+        self.set_rc(9, 1000)
+
+    def RTLStoppingDistanceSpeed(self):
+        '''test stopping distance unaffected by RTL speed'''
+        self.upload_simple_relhome_mission([
+            #                                              N  E   U
+            (mavutil.mavlink.MAV_CMD_NAV_TAKEOFF,          0, 0, 20),
+            (mavutil.mavlink.MAV_CMD_NAV_WAYPOINT,       200, 0, 20),
+            (mavutil.mavlink.MAV_CMD_NAV_RETURN_TO_LAUNCH, 0, 0,  0),
+        ])
+        self.set_parameters({
+            "AUTO_OPTIONS": 3,
+        })
+        self.context_push()
+        self.set_parameters({
+            'RTL_SPEED': 100,  # cm/s
+        })
+
+        self.change_mode('AUTO')
+        self.wait_ready_to_arm()
+        self.arm_vehicle()
+        self.wait_current_waypoint(2)
+
+        self.progress("Waiting for vehicle to get up to speed")
+        wpnav_speed = self.get_parameter('WPNAV_SPEED')
+        self.wait_groundspeed(wpnav_speed/100-0.1, wpnav_speed/100+0.1)
+
+        rtl_start_pos = self.get_local_position_NED()
+
+        # we accelerate so hard we can miss the zero value!
+        self.context_set_message_rate_hz('VFR_HUD', 50)
+
+        # note that there's going to be a significant latency involved
+        # between taking rtl_start_pos and entering RTL, but we're
+        # really interested in deviation to the east/west, and we are
+        # travelling due North, ...
+        self.change_mode('RTL')
+
+        self.progress("Waiting for vehicle to stop")
+        self.wait_groundspeed(-0.3, 0.3)
+        rtl_stopping_point_pos = self.get_local_position_NED()
+
+        self.progress("Checking vehicle deviation from track")
+        y_delta = abs(rtl_start_pos.y - rtl_stopping_point_pos.y)
+        self.progress(f"deviated {y_delta}m from track")
+        if y_delta > 0.2:
+            raise NotAchievedException(f"RTL deviated from track {y_delta}m")
+        self.context_pop()
+        self.change_mode('LOITER')
+        self.do_RTL()
+
+    def do_land(self):
+        self.change_mode('LAND')
+        self.wait_disarmed()
+
     def tests2b(self):  # this block currently around 9.5mins here
         '''return list of all tests'''
         ret = ([
@@ -12599,6 +12844,7 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             self.GSF,
             self.GSF_reset,
             self.AP_Avoidance,
+            self.RTL_ALT_FINAL,
             self.SMART_RTL,
             self.SMART_RTL_EnterLeave,
             self.SMART_RTL_Repeat,
@@ -12622,6 +12868,7 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             self.MISSION_START,
             self.AUTO_LAND_TO_BRAKE,
             self.WPNAV_SPEED,
+            self.RTLStoppingDistanceSpeed,
             self.WPNAV_SPEED_UP,
             self.WPNAV_SPEED_DN,
             self.DO_WINCH,
@@ -12685,6 +12932,8 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             self.TestTetherStuck,
             self.ScriptingFlipMode,
             self.CompassLearnCopyFromEKF,
+            self.AHRSAutoTrim,
+            self.Ch6TuningLoitMaxXYSpeed,
         ])
         return ret
 
@@ -12768,6 +13017,7 @@ class AutoTestCopter(vehicle_test_suite.TestSuite):
             "CompassMot": "Cuases an arithmetic exception in the EKF",
             "SMART_RTL_EnterLeave": "Causes a panic",
             "SMART_RTL_Repeat": "Currently fails due to issue with loop detection",
+            "RTLStoppingDistanceSpeed": "Currently fails due to vehicle going off-course",
         }
 
 

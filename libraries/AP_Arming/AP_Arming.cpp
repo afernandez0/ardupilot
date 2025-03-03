@@ -1267,7 +1267,7 @@ bool AP_Arming::can_checks(bool report)
                 }
                 case AP_CAN::Protocol::USD1:
                 case AP_CAN::Protocol::TOFSenseP:
-                case AP_CAN::Protocol::NanoRadar:
+                case AP_CAN::Protocol::RadarCAN:
                 case AP_CAN::Protocol::Benewake:
                 {
                     for (uint8_t j = i; j; j--) {
@@ -1461,6 +1461,27 @@ void AP_Arming::set_aux_auth_failed(uint8_t auth_id, const char* fail_msg)
             strncpy(aux_auth_fail_msg, fail_msg, aux_auth_str_len);
         }
         aux_auth_fail_msg_source = auth_id;
+    }
+}
+
+void AP_Arming::reset_all_aux_auths()
+{
+    WITH_SEMAPHORE(aux_auth_sem);
+
+    // clear all auxiliary authorisation ids
+    aux_auth_count = 0;
+    // clear any previous allocation errors
+    aux_auth_error = false;
+
+    // reset states for all auxiliary authorisation ids
+    for (uint8_t i = 0; i < aux_auth_count_max; i++) {
+        aux_auth_state[i] = AuxAuthStates::NO_RESPONSE;
+    }
+
+    // free up the failure message buffer
+    if (aux_auth_fail_msg != nullptr) {
+        free(aux_auth_fail_msg);
+        aux_auth_fail_msg = nullptr;
     }
 }
 

@@ -64,16 +64,6 @@ static int lfs_flags_from_flags(int flags);
 
 const extern AP_HAL::HAL& hal;
 
-AP_Filesystem_FlashMemory_LittleFS* AP_Filesystem_FlashMemory_LittleFS::singleton;
-
-AP_Filesystem_FlashMemory_LittleFS::AP_Filesystem_FlashMemory_LittleFS()
-{
-    if (singleton) {
-        AP_HAL::panic("Too many AP_Filesystem_FlashMemory_LittleFS instances");
-    }
-    singleton = this;
-}
-
 int AP_Filesystem_FlashMemory_LittleFS::open(const char *pathname, int flags, bool allow_absolute_path)
 {
     FS_CHECK_ALLOWED(-1);
@@ -201,6 +191,10 @@ int AP_Filesystem_FlashMemory_LittleFS::fsync(int fd)
         return -1;
     }
 
+    if (fp->file.off != fs_cfg.block_size) {
+        debug("misaligned fsync: %lu\n", fp->file.off);
+    }
+
     LFS_CHECK(lfs_file_sync(&fs, &(fp->file)));
     return 0;
 }
@@ -230,14 +224,13 @@ int32_t AP_Filesystem_FlashMemory_LittleFS::lseek(int fd, int32_t position, int 
         break;
     }
 
-    lfs_soff_t size = lfs_file_size(&fs, &(fp->file));
-    // emulate SEEK_SET past the end by truncating and filling with zeros
-    if (position > size && whence == SEEK_SET) {
-        LFS_CHECK(lfs_file_truncate(&fs, &(fp->file), position));
+    lfs_soff_t pos = lfs_file_seek(&fs, &(fp->file), position, lfs_whence);
+    if (pos < 0) {
+        errno = errno_from_lfs_error(pos);
+        return -1;
     }
 
-    LFS_CHECK(lfs_file_seek(&fs, &(fp->file), position, lfs_whence));
-    return 0;
+    return pos;
 }
 
 int AP_Filesystem_FlashMemory_LittleFS::stat(const char *name, struct stat *buf)
@@ -311,7 +304,7 @@ void *AP_Filesystem_FlashMemory_LittleFS::opendir(const char *pathdir)
     WITH_SEMAPHORE(fs_sem);
     ENSURE_MOUNTED_NULL();
 
-    DirEntry *result = new DirEntry;
+    DirEntry *result = NEW_NOTHROW DirEntry;
     if (!result) {
         errno = ENOMEM;
         return nullptr;
@@ -402,12 +395,61 @@ int AP_Filesystem_FlashMemory_LittleFS::closedir(void *ptr)
     // means we didn't successfully open the directory and lock.
     fs_sem.give();
 
-    LFS_CHECK(lfs_dir_close(&fs, &pair->dir));
-
+    int retval = lfs_dir_close(&fs, &pair->dir);
     delete pair;
+
+    if (retval < 0) {
+        errno = errno_from_lfs_error(retval);
+        return -1;
+    }
 
     return 0;
 }
+
+// return number of bytes that should be written before fsync for optimal
+// streaming performance/robustness. if zero, any number can be written.
+// LittleFS needs to copy the block contents to a new one if fsync is called
+// in the middle of a block. LittleFS also is guaranteed to not remember any
+// file contents until fsync is called!
+uint32_t AP_Filesystem_FlashMemory_LittleFS::bytes_until_fsync(int fd)
+{
+    FS_CHECK_ALLOWED(0);
+    WITH_SEMAPHORE(fs_sem);
+
+    FileDescriptor* fp = lfs_file_from_fd(fd);
+    if (!mounted || fp == nullptr) {
+        return 0;
+    }
+
+    uint32_t file_pos = fp->file.pos;
+    uint32_t block_size = fs_cfg.block_size;
+
+    // first block exclusively stores data:
+    // https://github.com/littlefs-project/littlefs/issues/564#issuecomment-2555733922
+    if (file_pos < block_size) {
+        return block_size - file_pos; // so block_offset is exactly file_pos
+    }
+
+    // see https://github.com/littlefs-project/littlefs/issues/564#issuecomment-2363032827
+    // n = (N − w/8 ( popcount( N/(B − 2w/8) − 1) + 2))/(B − 2w/8))
+    // off = N − ( B − 2w/8 ) n − w/8popcount( n )
+#define BLOCK_INDEX(N, B) \
+    (N - sizeof(uint32_t) * (__builtin_popcount(N/(B - 2 * sizeof(uint32_t)) -1) + 2))/(B - 2 * sizeof(uint32_t))
+
+#define BLOCK_OFFSET(N, B, n) \
+    (N - (B - 2*sizeof(uint32_t)) * n - sizeof(uint32_t) * __builtin_popcount(n))
+
+    uint32_t block_index = BLOCK_INDEX(file_pos, block_size);
+    // offset will be 4 (or bigger) through (block_size-1) as subsequent blocks
+    // start with one or more pointers; offset will never equal block_size
+    uint32_t block_offset = BLOCK_OFFSET(file_pos, block_size, block_index);
+
+#undef BLOCK_INDEX
+#undef BLOCK_OFFSET
+
+    return block_size - block_offset;
+}
+
 
 int64_t AP_Filesystem_FlashMemory_LittleFS::disk_free(const char *path)
 {
@@ -594,34 +636,6 @@ void AP_Filesystem_FlashMemory_LittleFS::mark_dead()
 #define W25NXX_TIMEOUT_PAGE_PROGRAM_US     700  // tPPmax = 700us
 #define W25NXX_TIMEOUT_BLOCK_ERASE_MS      10   // tBEmax = 10ms
 #define W25NXX_TIMEOUT_RESET_MS            500  // tRSTmax = 500ms
-
-bool AP_Filesystem_FlashMemory_LittleFS::sync_block(int _write_fd, uint32_t _write_offset, uint32_t& nbytes)
-{
-    // see https://github.com/littlefs-project/littlefs/issues/564#issuecomment-2363032827
-    // n = (N − w/8 ( popcount( N/(B − 2w/8) − 1) + 2))/(B − 2w/8))
-    // off = N − ( B − 2w/8 ) n − w/8popcount( n )
-#define BLOCK_INDEX(N, B) \
-    (N - sizeof(uint32_t) * (__builtin_popcount(N/(B - 2 * sizeof(uint32_t)) -1) + 2))/(B - 2 * sizeof(uint32_t))
-
-#define BLOCK_OFFSET(N, B, n) \
-    (N - (B - 2*sizeof(uint32_t)) * n - sizeof(uint32_t) * __builtin_popcount(n))
-
-    uint32_t blocksize = fs_cfg.block_size;
-    uint32_t block_index = BLOCK_INDEX(_write_offset, blocksize);
-    uint32_t block_offset = BLOCK_OFFSET(_write_offset, blocksize, block_index);
-    if (blocksize - block_offset <= nbytes) {
-        if (blocksize == block_offset) {
-            // exactly at the end of the block, sync and then write all the data
-            AP::FS().fsync(_write_fd);
-            return false;
-        } else {
-            // near the end of the block, fill in the remaining gap
-            nbytes = blocksize - block_offset;
-            return true;
-        }
-    }
-    return false;
-}
 
 bool AP_Filesystem_FlashMemory_LittleFS::is_busy()
 {
@@ -1233,20 +1247,6 @@ static int lfs_flags_from_flags(int flags)
     }
 
     return outflags;
-}
-
-// get_singleton for access from logging layer
-AP_Filesystem_FlashMemory_LittleFS *AP_Filesystem_FlashMemory_LittleFS::get_singleton(void)
-{
-    return singleton;
-}
-
-namespace AP
-{
-AP_Filesystem_FlashMemory_LittleFS &littlefs()
-{
-    return *AP_Filesystem_FlashMemory_LittleFS::get_singleton();
-}
 }
 
 #endif  // AP_FILESYSTEM_LITTLEFS_ENABLED
