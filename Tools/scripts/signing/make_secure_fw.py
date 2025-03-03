@@ -186,6 +186,8 @@ digest = SHA256.new(img[:offset] + img[offset+desc_len:])
 signer = pkcs1_15.new(private_key)
 signature = signer.sign(digest)
 
+signature_orig = signature
+
 siglen = to_unsigned(len(signature))
 # Note: Previous 72 = 8 + 64 (sigver, sig)
 #       Now     264 = 8 + 256
@@ -230,7 +232,7 @@ Logs.info("APJ file updated: %s" % apj_file)
 checksum_file = save_checksum(apj_file, digest)
 
 # Save the signature
-signature_file = save_signature(apj_file, signature)
+signature_file = save_signature(apj_file, signature_orig)
 Logs.info("Firmware signature saved into file: %s", signature_file)
 
 # open("new_boot.bin", 'wb').write(img)
