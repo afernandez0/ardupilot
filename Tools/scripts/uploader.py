@@ -980,10 +980,7 @@ class uploader(object):
         if signature_buffer is None:
             return (None, 0)
 
-        if runningPython3:
-            length = len(signature_buffer).to_bytes(1, byteorder='big')
-        else:
-            length = chr(len(signature_buffer))
+        length = len(signature_buffer)
         
         return (signature_buffer, length)
 
