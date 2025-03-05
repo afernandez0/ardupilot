@@ -946,7 +946,7 @@ class uploader(object):
                 print("\nERROR: Signature does not match. Checksums in the board has not been updated")
 
         if firmware_filename is not None and parameters_filename is not None:
-            if self.__update_checksum() == False:
+            if self.__update_checksum(firmware_filename, parameters_filename) == False:
                 print("\nERROR: Updating the checksums\n")
             else:
                 print("\nChecksums updated correctly.\n")

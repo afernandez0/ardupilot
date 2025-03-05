@@ -358,6 +358,11 @@ int32_t verify_checksum_firmware()
         return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND) * -1);
     }
 
+    const uint8_t some_buffer[WC_SHA256_DIGEST_SIZE] {};
+    if (memcmp(firmware_checksum, some_buffer, WC_SHA256_DIGEST_SIZE) == 0) {
+        return 0;
+    }
+
     // Get area of the Firmware
     bl_data_short firmware_data;
     if (get_firmware_location(firmware_data) != 0) {
@@ -388,6 +393,11 @@ int32_t verify_checksum_parameters()
 
     if (parameters_checksum == nullptr) {
         return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND) * -1);
+    }
+
+    const uint8_t some_buffer[WC_SHA256_DIGEST_SIZE] {};
+    if (memcmp(parameters_checksum, some_buffer, WC_SHA256_DIGEST_SIZE) == 0) {
+        return 0;
     }
 
     // Calculate checksum sha256 of the firmware   

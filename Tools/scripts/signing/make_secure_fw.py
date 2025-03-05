@@ -128,7 +128,7 @@ def get_checksums(in_firmware_digest):
 # =============================================================
 # =============================================================
 
-if len(sys.argv) != 4:
+if len(sys.argv) != 4 and len(sys.argv) != 5:
     print("Usage: make_secure_fw.py   APJ_FILE   PRIVATE_KEYFILE    DEFAULTS_CHK_FILE")
     print(" ")
     print("Where: ")
@@ -205,6 +205,10 @@ desc = struct.pack("<IQ256s", sig_len+8, sig_version, signature)
 # Extract the two checksums; 64 bytes 
 packed_chksums = get_checksums(digest)
 
+if sys.argv[4] is not None:
+    packed_chksums = [0x0] * 64
+    packed_chksums = bytearray(packed_chksums)
+
 # 16 bytes = descriptor, crc1, crc2, img_size, git_hash
 img = img[:(offset + 16)] + desc + packed_chksums + img[(offset + desc_len):]
 if len(img) != img_len:
@@ -235,7 +239,7 @@ checksum_file = save_checksum(apj_file, digest)
 signature_file = save_signature(apj_file, signature_orig)
 Logs.info("Firmware signature saved into file: %s", signature_file)
 
-# open("new_boot.bin", 'wb').write(img)
+open("new_boot.bin", 'wb').write(img)
 
 
 
