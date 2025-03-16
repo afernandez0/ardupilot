@@ -19,8 +19,9 @@
 #include "mcu_g4.h"
 #include "mcu_l4.h"
 
+// ajfg
 // optional uprintf() code for debug
-// #define BOOTLOADER_DEBUG SD1
+#define BOOTLOADER_DEBUG SD1
 
 #ifndef AP_BOOTLOADER_ALWAYS_ERASE
 #define AP_BOOTLOADER_ALWAYS_ERASE 0

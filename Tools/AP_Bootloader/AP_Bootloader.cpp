@@ -84,6 +84,10 @@ int main(void)
     }
 #endif
 
+uprintf("*** Bootloader starting\n");
+
+
+
     bool try_boot = false;
     uint32_t timeout = HAL_BOOTLOADER_TIMEOUT;
 
@@ -95,6 +99,8 @@ int main(void)
     AFIO->MAPR = mapr | AFIO_MAPR_CAN_REMAP_REMAP2 | AFIO_MAPR_SPI3_REMAP;
 #endif
 
+uprintf("*** Flash protection\n");
+
 #if HAL_FLASH_PROTECTION
     stm32_flash_unprotect_flash();
 #endif
@@ -102,6 +108,8 @@ int main(void)
 #if AP_BOOTLOADER_NETWORK_ENABLED
     network.save_comms_ip();
 #endif
+
+uprintf("*** Network\n");
 
 // ajfg
 #if  AP_CHECK_FIRMWARE_ENABLED

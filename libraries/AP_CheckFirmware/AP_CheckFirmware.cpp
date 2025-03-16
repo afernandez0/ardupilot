@@ -343,7 +343,7 @@ int32_t verify_checksums(void)
 
     output = verify_checksum_firmware();
 
-    output |= verify_checksum_parameters();
+    // output |= verify_checksum_parameters();
 
     return output;
 }

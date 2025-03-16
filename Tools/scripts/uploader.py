@@ -91,6 +91,8 @@ default_ports = ['/dev/serial/by-id/usb-Ardu*',
                  '/dev/serial/by-id/usb-Swift-Flyer*',
                  '/dev/serial/by-id/usb-CubePilot*',
                  '/dev/serial/by-id/usb-Qiotek*',
+                 '/dev/ttyACM0',
+                 '/dev/ttyACM1',
                  '/dev/tty.usbmodem*']
 
 if "cygwin" in _platform or is_WSL:
@@ -244,7 +246,8 @@ class uploader(object):
 
     INFO_BL_REV     = b'\x01'        # bootloader protocol revision
     BL_REV_MIN      = 2              # minimum supported bootloader protocol
-    BL_REV_MAX      = 5              # maximum supported bootloader protocol
+    # ajfg
+    BL_REV_MAX      = 6              # maximum supported bootloader protocol
     INFO_BOARD_ID   = b'\x02'        # board type
     INFO_BOARD_REV  = b'\x03'        # board revision
     INFO_FLASH_SIZE = b'\x04'        # max firmware size in bytes

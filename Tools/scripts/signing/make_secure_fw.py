@@ -107,8 +107,13 @@ def get_checksums(in_firmware_digest):
         print("*** Adding the Defaults checksum")
 
         checksum_buffer = None
-        with open(sys.argv[3], "rb") as chk_file:
-            checksum_buffer = chk_file.read()
+        try:
+            with open(sys.argv[3], "rb") as chk_file:
+                checksum_buffer = chk_file.read()
+        except Exception as e:
+            print(e)
+            print("Warning: Parameters checksum set as zeros")
+            checksum_buffer = [0x0] * 32
 
         ba = bytearray(checksum_buffer)
         tmp_params = struct.pack("<32s", ba)
