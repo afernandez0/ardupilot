@@ -169,6 +169,8 @@ img = zlib.decompress(base64.b64decode(d['image']))
 img_len = len(img)
 print("Image size: ", len(img))
 
+open("previous_boot.bin", 'wb').write(img)
+
 read_key = decode_key("PRIVATE", open(key_file, 'r').read())
 private_key = RSA.import_key(read_key)
 
@@ -215,15 +217,15 @@ if sys.argv[4] is not None:
     packed_chksums = bytearray(packed_chksums)
 
 # 16 bytes = descriptor, crc1, crc2, img_size, git_hash
-img = img[:(offset + 16)] + desc + packed_chksums + img[(offset + desc_len):]
-if len(img) != img_len:
-    Logs.error("Error: Image length changed: " % (len(img), img_len))
+img1 = img[:(offset + 16)] + desc + packed_chksums + img[(offset + desc_len):]
+if len(img1) != img_len:
+    Logs.error("Error: Image length changed: " % (len(img1), img_len))
     sys.exit(1)
 
 Logs.info("Applying APP_DESCRIPTOR Signature %d %s" % (siglen, binascii.hexlify(desc)))
 
-d["image"] = base64.b64encode(zlib.compress(img,9)).decode('utf-8')
-d["image_size"] = len(img)
+d["image"] = base64.b64encode(zlib.compress(img1,9)).decode('utf-8')
+d["image_size"] = len(img1)
 d["flash_free"] = d["flash_total"] - d["image_size"]
 d["signed_firmware"] = True
 
@@ -244,7 +246,7 @@ checksum_file = save_checksum(apj_file, digest)
 signature_file = save_signature(apj_file, signature_orig)
 Logs.info("Firmware signature saved into file: %s", signature_file)
 
-open("new_boot.bin", 'wb').write(img)
+open("new_boot.bin", 'wb').write(img1)
 
 
 

@@ -2,20 +2,15 @@
 
 BOARD_NAME=MatekH743
 
+# Compile the bootloader 
+# Add the keys to the binary 
 Tools/scripts/build_bootloaders.py --signing-key=Tools/scripts/signing/ArduPilotKeys/key1_public_key.dat ${BOARD_NAME}
 if [ $? -ne 0 ]; then
    echo "Bootloader"
    exit -1
 fi
 
-Tools/scripts/signing/make_secure_bl.py   Tools/bootloaders/${BOARD_NAME}_bl.bin 
-
-if [ $? -ne 0 ]; then
-   echo "Make secure"
-   exit -1
-fi
-
-./waf configure --board ${BOARD_NAME} --signed-fw
+./waf configure --board ${BOARD_NAME} --signed-fw -o build_firmware
 if [ $? -ne 0 ]; then
    echo "waf configure"
    exit -1
@@ -27,24 +22,22 @@ if [ $? -ne 0 ]; then
    exit -1
 fi
 
-./waf copter
+./waf copter -j 4
 if [ $? -ne 0 ]; then
    echo "waf copter"
    exit -1
 fi
 
-
-
 if [ -f build/${BOARD_NAME}/processed_defaults.parm ]; then
-    Tools/scripts/generate_checksum.py build/${BOARD_NAME}/processed_defaults.parm
+    Tools/scripts/generate_checksum.py build_firmware/${BOARD_NAME}/processed_defaults.parm
 fi
 
 # XXXX = For zero checksum 
-Tools/scripts/signing/make_secure_fw.py build/${BOARD_NAME}/bin/arducopter.apj Tools/scripts/signing/private_keys/key1_private_key.dat   build/${BOARD_NAME}/processed_defaults_parm.chksum   XXXX
+Tools/scripts/signing/make_secure_fw.py build_firmware/${BOARD_NAME}/bin/arducopter.apj Tools/scripts/signing/private_keys/key1_private_key.dat   build_firmware/${BOARD_NAME}/processed_defaults_parm.chksum   XXXX
 if [ $? -ne 0 ]; then
    echo "make secure fw"
    exit -1
 fi
 
-echo "Tools/scripts/uploader.py --port /dev/ttyACM0 build/${BOARD_NAME}/bin/arducopter.apj build/${BOARD_NAME}/bin/arducopter_apj.sign" 
+echo "Tools/scripts/uploader.py --port /dev/ttyACM0 build_firmware/${BOARD_NAME}/bin/arducopter.apj build_firmware/${BOARD_NAME}/bin/arducopter_apj.sign" 
 

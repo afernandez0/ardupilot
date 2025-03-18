@@ -168,3 +168,4 @@ venv.bak/
 autotest_result_*_junit.xml
 romfs_files.txt
 testing/*
+build_firmware/*
