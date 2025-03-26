@@ -223,12 +223,4 @@ define HAL_OSD_TYPE_DEFAULT 1
 ROMFS_WILDCARD libraries/AP_OSD/fonts/font*.bin
 
 
-# ajfg
-define HAL_USE_SERIAL TRUE
-define STM32_SERIAL_USE_USART1  TRUE
-STDOUT_SERIAL SD1
-STDOUT_BAUDRATE 57600
 
-#defaults for all ESP32 boards unless overwridden elsewhere
-LOG_DISARMED 1
-SERIAL0_PROTOCOL 0

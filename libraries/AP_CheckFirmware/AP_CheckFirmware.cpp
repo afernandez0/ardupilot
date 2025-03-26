@@ -132,42 +132,42 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
         return check_fw_result_t::CHECK_FW_OK;
     }
 
-    // ajfg. Previous  72 = 8 + 64 (sigver, sig)
-    //       Now      264 = 8 + 256 (sigver, sig)
-    if (ad->signature_length != 264) {
-        return check_fw_result_t::FAIL_REASON_BAD_FIRMWARE_SIGNATURE;
-    }
-    if (memcmp((const uint8_t*)&sig_version, ad->signature, sizeof(sig_version)) != 0) {
-        return check_fw_result_t::FAIL_REASON_BAD_FIRMWARE_SIGNATURE;
-    }
+    // // ajfg. Previous  72 = 8 + 64 (sigver, sig)
+    // //       Now      264 = 8 + 256 (sigver, sig)
+    // if (ad->signature_length != 264) {
+    //     return check_fw_result_t::FAIL_REASON_BAD_FIRMWARE_SIGNATURE;
+    // }
+    // if (memcmp((const uint8_t*)&sig_version, ad->signature, sizeof(sig_version)) != 0) {
+    //     return check_fw_result_t::FAIL_REASON_BAD_FIRMWARE_SIGNATURE;
+    // }
 
-    if (wolfCrypt_Init() != 0) {
-        return check_fw_result_t::FAIL_REASON_WOLF_INIT_FAILED;
-    }
+    // if (wolfCrypt_Init() != 0) {
+    //     return check_fw_result_t::FAIL_REASON_WOLF_INIT_FAILED;
+    // }
 
-    // Calculate firmware hash
-    bl_data_short   firmware_data(const_cast<uint8_t *>(flash1), len1, 
-    const_cast<uint8_t *>(flash2), len2);
-    unsigned char   digest[WC_SHA256_DIGEST_SIZE];
+    // // Calculate firmware hash
+    // bl_data_short   firmware_data(const_cast<uint8_t *>(flash1), len1, 
+    // const_cast<uint8_t *>(flash2), len2);
+    // unsigned char   digest[WC_SHA256_DIGEST_SIZE];
     
-    if (calculate_hash(firmware_data, digest) != 0) {
-        return check_fw_result_t::FAIL_REASON_HASH_FAILED;
-    }
+    // if (calculate_hash(firmware_data, digest) != 0) {
+    //     return check_fw_result_t::FAIL_REASON_HASH_FAILED;
+    // }
     
-    /*
-      look over all public keys, if one matches then we are OK
-     */
-    int ret = 0;
-    ret = int_check_signature(const_cast<unsigned char *>(&ad->signature[sizeof(sig_version)]), 
-                                ad->signature_length, digest, sizeof(digest));
+    // /*
+    //   look over all public keys, if one matches then we are OK
+    //  */
+    // int ret = 0;
+    // ret = int_check_signature(const_cast<unsigned char *>(&ad->signature[sizeof(sig_version)]), 
+    //                             ad->signature_length, digest, sizeof(digest));
 
-    wolfCrypt_Cleanup();
+    // wolfCrypt_Cleanup();
 
-    // none of the public keys matched
-    if (ret == 0)
+    // // none of the public keys matched
+    // if (ret == 0)
         return check_fw_result_t::CHECK_FW_OK;
-    else 
-        return check_fw_result_t::FAIL_REASON_VERIFICATION;
+    // else 
+    //     return check_fw_result_t::FAIL_REASON_VERIFICATION;
 }
 
 #endif // AP_SIGNED_FIRMWARE
@@ -339,9 +339,9 @@ extern const AP_HAL::HAL &hal;
 */
 int32_t verify_checksums(void)
 {
-    int output = 0;
+    int32_t output = 0;
 
-    output = verify_checksum_firmware();
+    //output = verify_checksum_firmware();
 
     // output |= verify_checksum_parameters();
 

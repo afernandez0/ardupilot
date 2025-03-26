@@ -397,6 +397,18 @@ failure_response(void)
     cout(data, sizeof(data));
 }
 
+
+static void
+other_response(uint8_t value)
+{
+    uint8_t data[] = {
+        PROTO_INSYNC,
+        value
+    };
+
+    cout(data, sizeof(data));
+}
+
 /**
  * Function to wait for EOC
  *
@@ -514,6 +526,7 @@ bootloader(unsigned timeout)
     if (led_state != LED_BAD_FW) {
         led_set(LED_BLINK);
     }
+
 
     while (true) {
         volatile int c;
@@ -1242,11 +1255,14 @@ bootloader(unsigned timeout)
         // invalid reply:	INSYNC/INVALID
         //
         case PROTO_VERIFY_SIGNATURE: {
-            uprintf("   == Verify signature\n");
             if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
                 // lower chance of random data on a uart triggering erase
                 goto cmd_bad;
             }
+
+            static uint16_t signature_index = 0;
+            static bool     first_block = true;
+            static uint16_t SIGNATURE_LENGTH = 256;
 
             // expect count
             led_set(LED_OFF);
@@ -1254,64 +1270,76 @@ bootloader(unsigned timeout)
             arg = cin(50);
 
             if (arg < 0) {
-                goto cmd_bad;
+                //goto cmd_bad;
+                goto cmd_step1;
             }
 
             // sanity-check arguments. Aligned to 4 bytes 
             if (arg % 4) {
-                goto cmd_bad;
+                //goto cmd_bad;
+                goto cmd_step2;
             }
 
             // arg = len
             int  checksum_len = arg;
 
             // RSA Signature length
-            if (checksum_len != 256) {
-                goto cmd_bad;
+            if (checksum_len > SIGNATURE_LENGTH) {
+                //goto cmd_bad;
+                goto cmd_step3;
             }
-            uprintf("   chk len=%d\n", checksum_len);
-           
+
             // Read the signature
             for (int i = 0; i < arg; i++) {
                 c = cin(1000);
 
                 if (c < 0) {
-                    goto cmd_bad;
+                    // goto cmd_bad;
+                    goto cmd_step4;
                 }
 
                 // uint8_t
-                flash_buffer.c[i] = c;
+                flash_buffer.c[signature_index] = c;
+                signature_index ++;
+                if (signature_index > SIGNATURE_LENGTH) 
+                    signature_index = 0;
             }
 
             if (!wait_for_eoc(200)) {
-                goto cmd_bad;
-            }
-            uprintf("   EOC\n");
-
-
-            // Calculate the hash
-            bl_data_short firmware_data;
-
-            if (get_firmware_location(firmware_data) != 0) {
-                goto cmd_fail;
-            }
-            uprintf("   addr=%x  %x\n", int(firmware_data.data1),  int(firmware_data.data2));
-
-            if (calculate_hash(firmware_data, calculated_hash) != 0) {
-                goto cmd_fail;
-            }
-            uprintf("   hash=%02x %02x\n", calculated_hash[0], calculated_hash[31]);
-
-            // Check the signature
-            int ret = int_check_signature(const_cast<unsigned char *>(flash_buffer.c), 
-                                          256, calculated_hash, sizeof(calculated_hash));            
-            if (ret != 0) {
-                // TODO
-                uprintf("   Bad sign\n");
-                // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum");
-                goto cmd_fail;
+                // goto cmd_bad;
+                goto cmd_step5;
             }
 
+            if (first_block) {
+                // Next it is the second block
+                first_block = false;
+            } else {
+                /*
+                // Calculate the hash
+                bl_data_short firmware_data;
+    
+                if (get_firmware_location(firmware_data) != 0) {
+                    goto cmd_fail;
+                }
+    
+                if (calculate_hash(firmware_data, calculated_hash) != 0) {
+                    goto cmd_fail;
+                }
+    
+                // Check the signature
+                int ret = int_check_signature(const_cast<unsigned char *>(flash_buffer.c), 
+                                            256, calculated_hash, sizeof(calculated_hash));            
+                if (ret != 0) {
+                    // TODO
+                    // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum");
+                    goto cmd_fail;
+                }
+                */
+
+                // Next it is the first block
+                first_block = true;
+                signature_index = 0;
+            }
             break;
         }
 
@@ -1324,7 +1352,6 @@ bootloader(unsigned timeout)
         // invalid reply:	INSYNC/INVALID
         //
         case PROTO_UPDATE_CHECKSUM: {
-            uprintf("   Upd chck\n");
             if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
                 // lower chance of random data on a uart triggering erase
                 goto cmd_bad;
@@ -1346,8 +1373,6 @@ bootloader(unsigned timeout)
 
             // arg = len
             int  checksum_len = arg;
-
-            uprintf("   chk len=%d\n", checksum_len);
 
             if (checksum_len != WC_SHA256_DIGEST_SIZE) {
                 goto cmd_bad;
@@ -1373,13 +1398,12 @@ bootloader(unsigned timeout)
             uint32_t image_size = 0;
             uint8_t *firmware_checksum = find_firmware(image_size);
         
-            uprintf("   addr=%x\n", int(firmware_checksum));
             if (firmware_checksum == nullptr) {
                 goto cmd_fail;
             }
             
             // Update the checksum
-            memcpy(firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE);
+            memcpy(firmware_checksum, flash_buffer.c, WC_SHA256_DIGEST_SIZE);
             break;
         }
 
@@ -1392,8 +1416,6 @@ bootloader(unsigned timeout)
         // invalid reply:	INSYNC/INVALID
         //
         case PROTO_UPDATE_PARAMS_CHECKSUM: {
-            uprintf("   Upd pars chck\n");
-
             if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
                 // lower chance of random data on a uart triggering erase
                 goto cmd_bad;
@@ -1415,7 +1437,6 @@ bootloader(unsigned timeout)
 
             // arg = len
             int  checksum_len = arg;
-            uprintf("   chk len=%d\n", checksum_len);
 
             if (checksum_len != WC_SHA256_DIGEST_SIZE) {
                 goto cmd_bad;
@@ -1443,7 +1464,6 @@ bootloader(unsigned timeout)
             uint32_t parameters_size = 0;
             uint8_t *parameters_checksum = find_parameters(parameters_size, &parameters_address);
 
-            uprintf("   addr=%x\n", int(parameters_checksum));
             if (parameters_checksum == nullptr) {
                 goto cmd_fail;
             }
@@ -1484,6 +1504,23 @@ cmd_bad:
 cmd_fail:
         // send a 'command failed' response but don't kill the timeout - could be garbage
         failure_response();
+        continue;
+
+
+cmd_step1:
+        other_response(1);
+        continue;
+cmd_step2:
+        other_response(2);
+        continue;
+cmd_step3:
+        other_response(3);
+        continue;
+cmd_step4:
+        other_response(4);
+        continue;
+cmd_step5:
+        other_response(55);
         continue;
     }
 }

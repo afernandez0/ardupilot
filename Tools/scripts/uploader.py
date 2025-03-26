@@ -930,22 +930,22 @@ class uploader(object):
             self.__sync()
 
         if (fw.property('extf_image_size', 0) > 0):
-            self.erase_extflash("Erase ExtF  ", fw.property('extf_image_size', 0))
-            self.__program_extf("Program ExtF", fw)
-            self.__verify_extf("Verify ExtF ", fw, fw.property('extf_image_size', 0))
+            self.erase_extflash("Erase ExtF     ", fw.property('extf_image_size', 0))
+            self.__program_extf("Program ExtF   ", fw)
+            self.__verify_extf("Verify ExtF     ", fw, fw.property('extf_image_size', 0))
 
         if (fw.property('image_size') > 0):
-            self.__erase("Erase  ")
-            self.__program("Program", fw)
+            self.__erase("Erase     ")
+            self.__program("Program   ", fw)
 
             if self.bl_rev == 2:
-                self.__verify_v2("Verify ", fw)
+                self.__verify_v2("Verify v2 ", fw)
             else:
-                self.__verify_v3("Verify ", fw)
+                self.__verify_v3("Verify v3 ", fw)
 
         if signature_file is not None:
             # Send Check Signature
-            if self.__verify_signature(signature_file) == True:
+            if self.__verify_signature(signature_file) == False:
                 print("\nERROR: Signature does not match. Checksums in the board has not been updated")
 
         if firmware_filename is not None and parameters_filename is not None:
@@ -974,38 +974,43 @@ class uploader(object):
 
         except FileNotFoundError:
             print("ERROR: Signature file does not exist")
-            return (None, 0)
+            return None
         
         except IOError:
             print("ERROR: Reading the signature file")
-            return (None, 0)
-        
-        if signature_buffer is None:
-            return (None, 0)
-
-        length = len(signature_buffer)
-        
-        return (signature_buffer, length)
+            return None
+             
+        return signature_buffer
 
     def __verify_signature(self, in_filename):
-        print("\nVerifying signature")
-
         # Read the signature from the file
-        (signature_buffer, length) = self.__load_file(in_filename)
+        signature_buffer = self.__load_file(in_filename)
         if signature_buffer is None:
             return False
 
-        print("\nSignature read from file")
+        label="Signature "
+        groups = self.__split_len(signature_buffer, uploader.PROG_MULTI_MAX)
 
-        self.__send(uploader.VERIFY_SIGNATURE)
-        self.__send(length)
-        self.__send(signature_buffer)
-        print("\nSent ", length, " bytes to board")
+        uploadProgress = 0
+        for the_bytes in groups:
+            # This is critical
+            if runningPython3:
+                the_length = len(the_bytes).to_bytes(1, byteorder='big')
+            else:
+                the_length = chr(len(the_bytes))
+                
+            self.__send(uploader.VERIFY_SIGNATURE)
+            self.__send(the_length)
+            self.__send(the_bytes)
+            self.__send(uploader.EOC)
+            self.__getSync()
 
-        self.__send(uploader.EOC)
+            # Print upload progress (throttled, so it does not delay upload progress)
+            uploadProgress += 1
+            if uploadProgress % 256 == 0:
+                self.__drawProgressBar("label", uploadProgress, len(groups))
 
-        print("\nWaiting for synch")
-        self.__getSync()
+        self.__drawProgressBar(label, 100, 100)
 
         return True
 
@@ -1022,34 +1027,44 @@ class uploader(object):
         print("\nUpdating Firmware checksum")
 
         # Read the checksum from the file
-        (checksum_buffer, length) = self.__load_file(in_filename)
+        checksum_buffer = self.__load_file(in_filename)
         if checksum_buffer is None:
             return False
-
+        
+        # This is critical
+        if runningPython3:
+            the_length = len(checksum_buffer).to_bytes(1, byteorder='big')
+        else:
+            the_length = chr(len(checksum_buffer))
+            
         self.__send(uploader.UPDATE_CHECKSUM)
-        self.__send(length)
+        self.__send(the_length)
         self.__send(checksum_buffer)
-        print("\nSent ", length, " bytes to board")
         self.__send(uploader.EOC)
-        print("\nWaiting for synch")
         self.__getSync()
+
         return True
 
     def __update_parameters_checksum(self, in_filename):
         print("\nUpdating Parameters checksum")
 
         # Read the checksum from the file
-        (checksum_buffer, length) = self.__load_file(in_filename)
+        checksum_buffer = self.__load_file(in_filename)
         if checksum_buffer is None:
             return False
 
+        # This is critical
+        if runningPython3:
+            the_length = len(checksum_buffer).to_bytes(1, byteorder='big')
+        else:
+            the_length = chr(len(checksum_buffer))
+
         self.__send(uploader.UPDATE_PARAMETERS_CHECKSUM)
-        self.__send(length)
+        self.__send(the_length)
         self.__send(checksum_buffer)
-        print("\nSent ", length, " bytes to board")
         self.__send(uploader.EOC)
-        print("\nWaiting for synch")
         self.__getSync()
+        
         return True
 
     def __next_baud_flightstack(self):
