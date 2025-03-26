@@ -146,8 +146,8 @@ if len(sys.argv) != 4 and len(sys.argv) != 5:
     sys.exit(1)
 
 
-# 2048 bits (256 bytes)
-key_len = 256
+# 2048 bits (Private key: 1192 bytes)
+key_len = 1192
 sig_len = 256
 
 # NOTE: Should these two values updated for RSA 2048?
@@ -174,8 +174,8 @@ open("previous_boot.bin", 'wb').write(img)
 read_key = decode_key("PRIVATE", open(key_file, 'r').read())
 private_key = RSA.import_key(read_key)
 
-if private_key.size_in_bytes() != key_len:
-    Logs.error("Bad key length: %u   Expected: %u" % (private_key.size_in_bytes(), key_len))
+if len(read_key) != key_len and len(read_key) != key_len-1:
+    Logs.error("Bad key length: %u   Expected: %u" % (len(read_key), key_len))
     sys.exit(1)
 
 offset = img.find(descriptor)

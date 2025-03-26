@@ -40,12 +40,22 @@ bname = sys.argv[1]
 
 # Generate pair of keys
 key = RSA.generate(2048)
-private_key = key.export_key()
+private_key = key.export_key(format="DER")
 
-public_key = key.publickey().export_key()
+public_key = key.publickey().export_key(format="DER")
 
-print("Private key length: ", key.size_in_bytes())
-print("Public  key length: ", key.publickey().size_in_bytes())
+# print("Private key length: ", key.size_in_bytes())
+# print("Public  key length: ", key.publickey().size_in_bytes())
+
+print("PRIVATE key")
+print(private_key)
+print(f"len =  {len(private_key)} bytes")
+print(" ")
+
+print("PUBLIC key")
+print(public_key)
+print(" ")
+print(f"len =  {len(public_key)} bytes")
 
 public_fname = "%s_public_key.dat" % bname
 private_fname = "%s_private_key.dat" % bname
@@ -59,9 +69,3 @@ with open(public_fname, "w") as f:
     f.write(encode_key("PUBLIC", public_key))
 
 Logs.info("Generated %s" % public_fname)
-
-
-
-
-
-

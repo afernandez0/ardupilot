@@ -185,12 +185,12 @@ static_assert(sizeof(app_descriptor_signed) == APP_DESCRIPTOR_SIGNED_TOTAL_LENGT
 #if AP_SIGNED_FIRMWARE
 
 // ajfg. Previous  32
-//       Now      256
-#define AP_PUBLIC_KEY_LEN 256
-#define AP_PUBLIC_KEY_MAX_KEYS 5
+//       Now      294
+#define AP_PUBLIC_KEY_LEN 294
+#define AP_PUBLIC_KEY_MAX_KEYS 3
 #define AP_PUBLIC_KEY_SIGNATURE {0x4e, 0xcf, 0x4e, 0xa5, 0xa6, 0xb6, 0xf7, 0x29}
 
-#define RSA_SIGNATURE_LENGTH   256
+//#define RSA_SIGNATURE_LENGTH   256
 
 struct PACKED ap_secure_data {
     uint8_t sig[8] = AP_PUBLIC_KEY_SIGNATURE;

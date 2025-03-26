@@ -56,11 +56,14 @@ parser.add_argument("keys", nargs='*', type=str, default=[], help="keys")
 args = parser.parse_args()
     
 descriptor = b'\x4e\xcf\x4e\xa5\xa6\xb6\xf7\x29'
-max_keys = 5
-# 2048 bits (256 bytes)
-key_len = 256
+max_keys = 3
+# 2048 bits (294 bytes)
+key_len = 294
 
 img = open(args.bootloader, 'rb').read()
+
+# Temp 
+open("bootloader_copy.bin", "wb").write(img)
 
 offset = img.find(descriptor)
 if offset == -1:
@@ -101,8 +104,9 @@ for kfile in keys:
     key = RSA.import_key(read_key)
     exported_key = key.export_key(format='DER')
     # print(exported_key)
+    # print(len(exported_key))
 
-    if key.size_in_bytes() != key_len:
+    if len(exported_key) != key_len:
         Logs.error("Bad key length %u in %s" % (key.size_in_bytes(), kfile))
         sys.exit(1)
 
@@ -112,6 +116,7 @@ for kfile in keys:
 
 # Write the updated file
 img = img[:offset] + desc + img[offset+desc_len:]
+
 
 # Update the Firmware
 # open(sys.argv[1], 'wb').write(img)
