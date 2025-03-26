@@ -983,6 +983,8 @@ class uploader(object):
         return signature_buffer
 
     def __verify_signature(self, in_filename):
+        print("\n", end='')
+
         # Read the signature from the file
         signature_buffer = self.__load_file(in_filename)
         if signature_buffer is None:
@@ -1016,9 +1018,9 @@ class uploader(object):
 
     # Store new checksums 
     def __update_checksum(self, in_firmware_filename, in_parameters_filename):
-        if self.__update_firmware_checksum() == False:
+        if self.__update_firmware_checksum(in_firmware_filename) == False:
             return False
-        if self.__update_parameters_checksum() == False:
+        if self.__update_parameters_checksum(in_parameters_filename) == False:
             return False
         return True
 
@@ -1064,7 +1066,7 @@ class uploader(object):
         self.__send(checksum_buffer)
         self.__send(uploader.EOC)
         self.__getSync()
-        
+
         return True
 
     def __next_baud_flightstack(self):
