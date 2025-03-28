@@ -549,14 +549,15 @@ uint32_t AP_Frsky_SPort_Passthrough::calc_batt(uint8_t instance)
  * true if we need to respond to the last polling byte
  * for FrSky SPort Passthrough (OpenTX) protocol (X-receivers)
  */
-bool AP_Frsky_SPort_Passthrough::is_passthrough_byte(const uint8_t byte) const
+// ajfg
+bool AP_Frsky_SPort_Passthrough::is_passthrough_byte(const uint8_t in_byte) const
 {
 #if HAL_WITH_FRSKY_TELEM_BIDIRECTIONAL
-    if( byte == _SPort_bidir.downlink1_sensor_id || byte == _SPort_bidir.downlink2_sensor_id ) {
+    if( in_byte == _SPort_bidir.downlink1_sensor_id || in_byte == _SPort_bidir.downlink2_sensor_id ) {
         return true;
     }
 #endif
-    return byte == downlink_sensor_id;
+    return in_byte == downlink_sensor_id;
 }
 
 /*
