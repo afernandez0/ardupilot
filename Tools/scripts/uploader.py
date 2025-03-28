@@ -603,6 +603,32 @@ class uploader(object):
         self.__drawProgressBar(label, total, self.fw_maxsize)
         print("\nReceived %u bytes to %s" % (total, fw))
 
+    # download code
+    def __download_to_buffer(self, label):
+        print("\n", end='')
+
+        fw_buffer = bytearray()
+
+        downloadProgress = 0
+        readsize = uploader.READ_MULTI_MAX
+        total = 0
+        while True:
+            n = min(self.fw_maxsize - total, readsize)
+            bb = self.__read_multi(n)
+            fw_buffer.extend(bb)
+
+            total += len(bb)
+            # Print download progress (throttled, so it does not delay download progress)
+            downloadProgress += 1
+            if downloadProgress % 256 == 0:
+                self.__drawProgressBar(label, total, self.fw_maxsize)
+            if len(bb) < readsize:
+                break
+        self.__drawProgressBar(label, total, self.fw_maxsize)
+        print("\nReceived %u bytes, buffer %u" % (total, len(fw_buffer)))
+
+        return fw_buffer
+
     # verify code
     def __verify_v2(self, label, fw):
         print("\n", end='')
@@ -929,6 +955,10 @@ class uploader(object):
             self.port.baudrate = self.baudrate_bootloader_flash
             self.__sync()
 
+        if signature_file is not None:
+            # Create a backup
+            fw_backup = self.__download_to_buffer(self, "Backup    ")
+
         if (fw.property('extf_image_size', 0) > 0):
             self.erase_extflash("Erase ExtF     ", fw.property('extf_image_size', 0))
             self.__program_extf("Program ExtF   ", fw)
@@ -947,6 +977,12 @@ class uploader(object):
             # Send Check Signature
             if self.__verify_signature(signature_file) == False:
                 print("\nERROR: Signature does not match. Checksums in the board has not been updated")
+
+                print("Reverting firmware")
+                self.__erase("Erase     ")
+                fw.image = fw_backup
+                self.__program("Program:  ", fw)
+                return
 
         if firmware_filename is not None and parameters_filename is not None:
             if self.__update_checksum(firmware_filename, parameters_filename) == False:

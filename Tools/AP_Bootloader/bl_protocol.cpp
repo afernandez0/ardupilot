@@ -1301,7 +1301,7 @@ bootloader(unsigned timeout)
                 // uint8_t
                 flash_buffer.c[signature_index] = c;
                 signature_index ++;
-                if (signature_index > SIGNATURE_LENGTH) 
+                if (signature_index >= SIGNATURE_LENGTH) 
                     signature_index = 0;
             }
 
@@ -1506,7 +1506,7 @@ cmd_fail:
         failure_response();
         continue;
 
-
+// TODO: Remove after testing
 cmd_step1:
         other_response(1);
         continue;
