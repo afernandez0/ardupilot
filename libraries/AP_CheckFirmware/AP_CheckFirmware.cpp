@@ -66,8 +66,8 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
     // Same algorithm as make_secure_fw.py
     encSigLen = wc_EncodeSignature(encSig, in_digest, in_digest_length, SHA256h);
 
-    for (const auto &public_key : public_keys.public_key) {
-        
+    for (const auto &public_key : public_keys.public_key) {       
+
         // Try next key
         // Initialize the RSA key and decode the DER encoded public key
         ret = wc_InitRsaKey(&rsaKey, nullptr);

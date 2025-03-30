@@ -67,8 +67,10 @@ uint8_t *find_parameters(uint32_t &out_image_size, unsigned char **out_parameter
 
 #else 
 
+#ifndef WC_SHA256_DIGEST_SIZE
 // ajfg. Copy from SHA256 WolfSSL for compilation purposess
 #define WC_SHA256_DIGEST_SIZE    32
+#endif
 
 #endif
 

@@ -244,6 +244,11 @@ class uploader(object):
     UPDATE_CHECKSUM = b'\x42'     # Update the firmware checksum in the RomFS
     UPDATE_PARAMETERS_CHECKSUM = b'\x43'     # Update the parameters checksum in the RomFS
 
+    # Debug 
+    GET_DATA = b'\x44'
+    GET_SHA = b'\x45'
+    GET_SIGNATURE  = b'\x46'
+
     INFO_BL_REV     = b'\x01'        # bootloader protocol revision
     BL_REV_MIN      = 2              # minimum supported bootloader protocol
     # ajfg
@@ -604,7 +609,7 @@ class uploader(object):
         print("\nReceived %u bytes to %s" % (total, fw))
 
     # download code
-    def __download_to_buffer(self, label):
+    def __download_to_buffer(self, label, max_size):
         print("\n", end='')
 
         fw_buffer = bytearray()
@@ -613,19 +618,26 @@ class uploader(object):
         readsize = uploader.READ_MULTI_MAX
         total = 0
         while True:
-            n = min(self.fw_maxsize - total, readsize)
-            bb = self.__read_multi(n)
-            fw_buffer.extend(bb)
+            # print(self.fw_maxsize, total,readsize)
 
-            total += len(bb)
-            # Print download progress (throttled, so it does not delay download progress)
-            downloadProgress += 1
-            if downloadProgress % 256 == 0:
-                self.__drawProgressBar(label, total, self.fw_maxsize)
-            if len(bb) < readsize:
-                break
-        self.__drawProgressBar(label, total, self.fw_maxsize)
-        print("\nReceived %u bytes, buffer %u" % (total, len(fw_buffer)))
+            n = min(max_size - total, readsize)
+            try:
+                bb = self.__read_multi(n)
+                fw_buffer.extend(bb)
+
+                total += len(bb)
+                # Print download progress (throttled, so it does not delay download progress)
+                downloadProgress += 1
+                if downloadProgress % 256 == 0:
+                    self.__drawProgressBar(label, total, max_size)
+                if len(bb) < readsize:
+                    break
+            except:
+                # self.port.flush()
+                time.sleep(1)
+
+        self.__drawProgressBar(label, total, max_size)
+        print("\nReceived %u bytes, buffer %u   Max Size: %u" % (total, len(fw_buffer), max_size))
 
         return fw_buffer
 
@@ -955,9 +967,9 @@ class uploader(object):
             self.port.baudrate = self.baudrate_bootloader_flash
             self.__sync()
 
-        if signature_file is not None:
-            # Create a backup
-            fw_backup = self.__download_to_buffer(self, "Backup    ")
+        # if signature_file is not None:
+        #     # Create a backup. It is slow
+        #     fw_backup = self.__download_to_buffer("Backup    ", self.fw_maxsize)
 
         if (fw.property('extf_image_size', 0) > 0):
             self.erase_extflash("Erase ExtF     ", fw.property('extf_image_size', 0))
@@ -975,15 +987,19 @@ class uploader(object):
 
         if signature_file is not None:
             # Send Check Signature
-            if self.__verify_signature(signature_file) == False:
-                print("\nERROR: Signature does not match. Checksums in the board has not been updated")
+            try:
+                self.__verify_signature(signature_file)
+            except Exception as e:
+                # print("\nERROR: Signature does not match. Checksums in the board has not been updated")
+                print("Exception: ", e)
 
-                print("Reverting firmware")
-                self.__erase("Erase     ")
-                fw.image = fw_backup
-                self.__program("Program:  ", fw)
+                # Does not fully work
+                # print("Reverting firmware")
+                # self.__erase("Erase     ")
+                # fw.image = fw_backup
+                # self.__program("Program:  ", fw)
                 return
-
+            
         if firmware_filename is not None and parameters_filename is not None:
             if self.__update_checksum(firmware_filename, parameters_filename) == False:
                 print("\nERROR: Updating the checksums\n")
@@ -998,6 +1014,12 @@ class uploader(object):
         print("\nRebooting.\n")
         self.__reboot()
         self.port.close()
+
+    def get_data(self):
+        self.__get_data()
+        self.__get_sha()
+        self.__get_signature()
+
 
     # ajfg. Load a binary file and stores it in a buffer 
     def __load_file(self, in_filename):
@@ -1024,7 +1046,7 @@ class uploader(object):
         # Read the signature from the file
         signature_buffer = self.__load_file(in_filename)
         if signature_buffer is None:
-            return False
+            raise RuntimeError("Error reading signature file")
 
         label="Signature "
         groups = self.__split_len(signature_buffer, uploader.PROG_MULTI_MAX)
@@ -1050,7 +1072,54 @@ class uploader(object):
 
         self.__drawProgressBar(label, 100, 100)
 
-        return True
+    def __get_data(self):
+        self.__send(uploader.GET_DATA +
+                    uploader.EOC)
+
+        ret = self.__recv_int()
+        print("")
+        print("   ret = ", ret)
+        if ret == 0:
+            report_data1 = self.__recv_int()
+            report_data2 = self.__recv_int()
+            report_offset2 = self.__recv_int()
+            print(f"   data1 = {report_data1}, {report_data1:0x}")
+            print(f"   data2 = {report_data2}, {report_data2:0x}")
+            print(f"   offset = {report_offset2}, {report_offset2:0x}")
+        
+        self.__getSync()
+
+    def __get_sha(self):
+        self.__send(uploader.GET_SHA +
+            uploader.EOC)
+
+        print("")
+        ret = self.__recv_int()
+        print("   ret = ", ret)
+        if ret == 0:
+            # Read the SHA Hash 
+            calculated_hash=self.__recv(32)
+            print("   sha = ", calculated_hash.hex() )
+
+        self.__getSync()
+
+    def __get_signature(self):
+        self.__send(uploader.GET_SIGNATURE +
+            uploader.EOC)
+
+        print("")
+        stored_signature = self.__recv(128)
+        stored_signature += self.__recv(128)
+        print("   stored signature = ", stored_signature.hex() )
+
+        ret = self.__recv_int()
+        print("  ret = ", ret)
+
+        ret = self.__recv_int()
+        print("  ret = ", ret)
+
+        self.__getSync()
+
 
     # Store new checksums 
     def __update_checksum(self, in_firmware_filename, in_parameters_filename):
@@ -1288,8 +1357,9 @@ def main():
     parser.add_argument('--erase-extflash', type=lambda x: int(x, 0), default=None,
                         help="Erase sectors containing specified amount of bytes from ext flash")
     parser.add_argument('--force-erase', action="store_true", help="Do not check for pre cleared flash, always erase the chip")
-    parser.add_argument('firmware', nargs="?", action="store", default=None, help="Firmware file to be uploaded")
     # ajfg
+    parser.add_argument('--get_data', action='store_true', default=False, help='Retrieve the data (SHA256, signature) of the firmware')
+    parser.add_argument('firmware', nargs="?", action="store", default=None, help="Firmware file to be uploaded")
     parser.add_argument('signature', nargs="?", action='store', default=None, help='Firmware signature filename')
     parser.add_argument('firmware_checksum', nargs="?", action='store', default=None, help='Firmware checksum filename')
     parser.add_argument('parameters_checksum', nargs="?", action='store', default=None, help='Parameters checksum filename')
@@ -1355,6 +1425,9 @@ def main():
                     elif args.erase_extflash:
                         up.erase_extflash('Erase ExtF', args.erase_extflash)
                         print("\nExtF Erase Finished")
+                    # Debug
+                    elif args.get_data:
+                        up.get_data()
                     else:
                         # ajfg. Add checksum parameters and signature
                         up.upload(fw, force=args.force, boot_delay=args.boot_delay,
