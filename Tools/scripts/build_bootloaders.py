@@ -116,3 +116,4 @@ for board in get_board_list():
 
 if len(failed_boards):
     print("Failed boards: %s" % list(failed_boards))
+    sys.exit(1)

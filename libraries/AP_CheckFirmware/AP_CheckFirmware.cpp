@@ -48,13 +48,14 @@ static bool all_zero_public_keys(void)
 int int_check_signature(unsigned char *in_signature, int in_signature_length,
     unsigned char *in_digest, int in_digest_length)
 {
+    /*
     // encSign = in_firmware_signature (calculated)
     unsigned char   encSig[WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ];
     word32          encSigLen = 0;
 
     // decSign = in_firmware (stored in Firmware)
-    unsigned char*  decSig = nullptr;
-    word32          decSigLen = 0;
+    unsigned char   decSig[WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ];
+    word32          decSigLen = sizeof(decSig);    
 
     RsaKey          rsaKey;
     RsaKey*         pRsaKey = nullptr;
@@ -66,7 +67,7 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
     // Same algorithm as make_secure_fw.py
     encSigLen = wc_EncodeSignature(encSig, in_digest, in_digest_length, SHA256h);
 
-    for (const auto &public_key : public_keys.public_key) {       
+    for (const auto &public_key : public_keys.public_key) {
 
         // Try next key
         // Initialize the RSA key and decode the DER encoded public key
@@ -75,25 +76,23 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
             break;
         }
         pRsaKey = &rsaKey;
-
+        
         // Read the next public key
         idx = 0;
         ret = wc_RsaPublicKeyDecode(public_key.key, &idx, &rsaKey, sizeof(public_key.key));
         if (ret != 0) {
             break;
         }
-
+        
         // Verify the signature by decrypting the value
-        // Skip signature version
-        decSigLen = wc_RsaSSL_VerifyInline(in_signature, in_signature_length, &decSig, &rsaKey);
-
-        if ((int)decSigLen < 0) {
-            ret = -1;
+        memset(decSig, 0, sizeof(decSig));
+        ret = wc_RsaSSL_Verify(in_signature, in_signature_length, decSig, decSigLen, &rsaKey);
+        if (ret < 0) {
             break;
         }
             
-        if (encSigLen != decSigLen) {
-            ret = -1;
+        if (ret != encSigLen) {
+            ret = -3;
             break;
         }
 
@@ -116,6 +115,66 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
         wc_FreeRsaKey(pRsaKey);
 
     return ret;
+    */
+
+
+    RsaKey          rsaKey;
+    word32          idx = 0;
+
+    // encSign = in_firmware_signature (calculated)
+    unsigned char   encSig[WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ];
+    word32          encSigLen = 0;
+    
+    int ret = 0;
+
+    ret = wc_EncodeSignature(encSig, in_digest, in_digest_length, SHA256h);
+    if (ret < 0) {
+        return -1;
+    }
+    encSigLen = (uint32_t)ret;
+
+    // Initialize the RSA key and decode the DER encoded public key
+    ret = wc_InitRsaKey(&rsaKey, nullptr);
+    if (ret != 0) {
+        return ret;
+    }
+
+    for (const auto &public_key : public_keys.public_key) {       
+        // Read the next public key
+        idx = 0;
+        ret = wc_RsaPublicKeyDecode(public_key.key, &idx, &rsaKey, sizeof(public_key.key));
+        if (ret != 0) {
+            break;
+        }
+
+        /*
+        Parameters:
+            hash_type A hash type from the “enum wc_HashType” such as “WC_HASH_TYPE_SHA256”.
+            sig_type A signature type enum value such as WC_SIGNATURE_TYPE_ECC or WC_SIGNATURE_TYPE_RSA.
+            data Pointer to buffer containing the data to hash.
+            data_len Length of the data buffer.
+            sig Pointer to buffer to output signature.
+            sig_len Length of the signature output buffer.
+            key Pointer to a key structure such as ecc_key or RsaKey.
+            key_len Size of the key structure.
+        */
+        //"WC_SIGNATURE_TYPE_RSA_W_ENC" 
+        ret = wc_SignatureVerifyHash(
+            wc_HashType::WC_HASH_TYPE_SHA256,
+            wc_SignatureType::WC_SIGNATURE_TYPE_RSA,
+            encSig, encSigLen,            
+            in_signature, in_signature_length,
+            &rsaKey, sizeof(rsaKey)
+        );
+
+        if (ret == 0) {
+            break;
+        }
+    }
+
+    wc_FreeRsaKey(&rsaKey);
+
+    return ret;
 }
 
 /*
@@ -123,7 +182,7 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
  */
 // ajfg: This pragma extends the frame so the compiler does not complain about
 // the extra size
-#pragma GCC diagnostic error "-Wframe-larger-than=5000"
+#pragma GCC diagnostic error "-Wframe-larger-than=5200"
 static check_fw_result_t check_firmware_signature(const app_descriptor_signed *ad,
                                                   const uint8_t *flash1, uint32_t len1,
                                                   const uint8_t *flash2, uint32_t len2)
@@ -132,42 +191,44 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
         return check_fw_result_t::CHECK_FW_OK;
     }
 
-    // // ajfg. Previous  72 = 8 + 64 (sigver, sig)
-    // //       Now      264 = 8 + 256 (sigver, sig)
-    // if (ad->signature_length != 264) {
-    //     return check_fw_result_t::FAIL_REASON_BAD_FIRMWARE_SIGNATURE;
-    // }
-    // if (memcmp((const uint8_t*)&sig_version, ad->signature, sizeof(sig_version)) != 0) {
-    //     return check_fw_result_t::FAIL_REASON_BAD_FIRMWARE_SIGNATURE;
-    // }
+    // ajfg. Previous  72 = 8 + 64 (sigver, sig)
+    //       Now      264 = 8 + 256 (sigver, sig)
+    if (ad->signature_length != 264) {
+        return check_fw_result_t::FAIL_REASON_BAD_FIRMWARE_SIGNATURE;
+    }
+    if (memcmp((const uint8_t*)&sig_version, ad->signature, sizeof(sig_version)) != 0) {
+        return check_fw_result_t::FAIL_REASON_BAD_FIRMWARE_SIGNATURE;
+    }
 
     // if (wolfCrypt_Init() != 0) {
     //     return check_fw_result_t::FAIL_REASON_WOLF_INIT_FAILED;
     // }
 
-    // // Calculate firmware hash
-    // bl_data_short   firmware_data(const_cast<uint8_t *>(flash1), len1, 
-    // const_cast<uint8_t *>(flash2), len2);
-    // unsigned char   digest[WC_SHA256_DIGEST_SIZE];
+    // Calculate firmware hash
+    bl_data_short   firmware_data(const_cast<uint8_t *>(flash1), len1, 
+    const_cast<uint8_t *>(flash2), len2);
+    unsigned char   digest[WC_SHA256_DIGEST_SIZE];
     
-    // if (calculate_hash(firmware_data, digest) != 0) {
-    //     return check_fw_result_t::FAIL_REASON_HASH_FAILED;
-    // }
+    if (calculate_hash(firmware_data, digest) != 0) {
+        return check_fw_result_t::FAIL_REASON_HASH_FAILED;
+    }
     
-    // /*
-    //   look over all public keys, if one matches then we are OK
-    //  */
-    // int ret = 0;
+    /*
+      look over all public keys, if one matches then we are OK
+     */
+    int ret = 0;
+
+    // Test 
     // ret = int_check_signature(const_cast<unsigned char *>(&ad->signature[sizeof(sig_version)]), 
     //                             ad->signature_length, digest, sizeof(digest));
 
-    // wolfCrypt_Cleanup();
+    //wolfCrypt_Cleanup();
 
-    // // none of the public keys matched
-    // if (ret == 0)
+    // none of the public keys matched
+    if (ret == 0)
         return check_fw_result_t::CHECK_FW_OK;
-    // else 
-    //     return check_fw_result_t::FAIL_REASON_VERIFICATION;
+    else 
+        return check_fw_result_t::FAIL_REASON_VERIFICATION;
 }
 
 #endif // AP_SIGNED_FIRMWARE
@@ -343,7 +404,7 @@ int32_t verify_checksums(void)
 
     //output = verify_checksum_firmware();
 
-    // output |= verify_checksum_parameters();
+    //output |= verify_checksum_parameters();
 
     return output;
 }
@@ -418,8 +479,9 @@ int32_t verify_checksum_parameters()
 int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigned char *out_buffer)
 {
     // Calculate checksum sha256 of the firmware   
-    int ret = -1;
-    wc_Sha256 sha256;
+    int           ret = -1;
+    wc_Sha256     sha256;
+    //wc_Sha256*    pSha256 = nullptr;
 
     ret = wc_InitSha256(&sha256);
     if (ret != 0) {
@@ -427,6 +489,7 @@ int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigne
         // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Unable to initialize SHA256");
         return -3;
     }
+    // pSha256 = &sha256;
 
     // Calculate the checksum of the whole firmware
     ret = wc_Sha256Update(&sha256, in_buffer, in_size);
@@ -444,6 +507,7 @@ int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigne
     }
         
     wc_Sha256Free(&sha256);
+    // wc_Sha256Free(pSha256);
 
     return 0;
 }
@@ -452,6 +516,7 @@ int32_t calculate_hash(const bl_data_short &in_location, unsigned char *out_buff
 {
     int             ret = -1;
     wc_Sha256       sha;
+    // wc_Sha256*      pSha256 = nullptr;
 
     // Calculate the digest (sha256) of the flash memory
     ret = wc_InitSha256(&sha);
@@ -459,6 +524,7 @@ int32_t calculate_hash(const bl_data_short &in_location, unsigned char *out_buff
         // return check_fw_result_t::FAIL_REASON_HASH_FAILED;
         return -3;
     }
+    // pSha256 = &sha;
 
     // The hash is calculated of the two parts of the firmware
     wc_Sha256Update(&sha, in_location.data1, in_location.length1);

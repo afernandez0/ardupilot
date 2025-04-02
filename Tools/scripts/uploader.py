@@ -275,7 +275,8 @@ class uploader(object):
                  source_system=None,
                  source_component=None,
                  no_extf=False,
-                 force_erase=False):
+                 force_erase=False,
+                 no_reboot=False,):
         self.MAVLINK_REBOOT_ID1 = bytearray(b'\xfe\x21\x72\xff\x00\x4c\x00\x00\x40\x40\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf6\x00\x01\x00\x00\x53\x6b')  # NOQA
         self.MAVLINK_REBOOT_ID0 = bytearray(b'\xfe\x21\x45\xff\x00\x4c\x00\x00\x40\x40\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xf6\x00\x00\x00\x00\xcc\x37')  # NOQA
         if target_component is None:
@@ -286,6 +287,7 @@ class uploader(object):
             source_component = 1
         self.no_extf = no_extf
         self.force_erase = force_erase
+        self.no_reboot = no_reboot
 
         # open the port, keep the default timeout short so we can poll quickly
         self.port = serial.Serial(portname, baudrate_bootloader, timeout=2.0, write_timeout=2.0)
@@ -399,7 +401,7 @@ class uploader(object):
                 raise NotImplementedError()
             if (c != self.OK):
                 # print("unexpected 0x%x instead of OK" % ord(c))
-                return False
+                return False            
             return True
 
         except NotImplementedError:
@@ -1011,14 +1013,20 @@ class uploader(object):
         if boot_delay is not None:
             self.__set_boot_delay(boot_delay)
 
-        print("\nRebooting.\n")
-        self.__reboot()
-        self.port.close()
+        if self.no_reboot == False:
+            print("\nRebooting.\n")
+            self.__reboot()
+            self.port.close()
 
-    def get_data(self):
-        self.__get_data()
-        self.__get_sha()
-        self.__get_signature()
+    def get_data(self, in_idx: str):
+        if in_idx == "1":
+            self.__get_data()
+        elif in_idx == "2":
+            self.__get_sha()
+        elif in_idx == "3":
+            self.__get_signature()
+        else:
+            return
 
 
     # ajfg. Load a binary file and stores it in a buffer 
@@ -1099,7 +1107,7 @@ class uploader(object):
         if ret == 0:
             # Read the SHA Hash 
             calculated_hash=self.__recv(32)
-            print("   sha = ", calculated_hash.hex() )
+            print("   sha = [", calculated_hash.hex(), "]")
 
         self.__getSync()
 
@@ -1110,16 +1118,12 @@ class uploader(object):
         print("")
         stored_signature = self.__recv(128)
         stored_signature += self.__recv(128)
-        print("   stored signature = ", stored_signature.hex() )
+        print("   stored signature = [", stored_signature.hex(), "]" )
 
         ret = self.__recv_int()
-        print("  ret = ", ret)
-
-        ret = self.__recv_int()
-        print("  ret = ", ret)
+        print("   ret = ", ret)
 
         self.__getSync()
-
 
     # Store new checksums 
     def __update_checksum(self, in_firmware_filename, in_parameters_filename):
@@ -1358,7 +1362,8 @@ def main():
                         help="Erase sectors containing specified amount of bytes from ext flash")
     parser.add_argument('--force-erase', action="store_true", help="Do not check for pre cleared flash, always erase the chip")
     # ajfg
-    parser.add_argument('--get_data', action='store_true', default=False, help='Retrieve the data (SHA256, signature) of the firmware')
+    parser.add_argument('--get-data',  default=False, help='Retrieve the data (data = 1, SHA256 = 2, signature = 3, checksum=4) of the firmware')
+    parser.add_argument('--no-reboot', action='store_true', default=False, help='Do not reboot the board after upload')
     parser.add_argument('firmware', nargs="?", action="store", default=None, help="Firmware file to be uploaded")
     parser.add_argument('signature', nargs="?", action='store', default=None, help='Firmware signature filename')
     parser.add_argument('firmware_checksum', nargs="?", action='store', default=None, help='Firmware checksum filename')
@@ -1401,7 +1406,8 @@ def main():
                                   args.source_system,
                                   args.source_component,
                                   args.no_extf,
-                                  args.force_erase)
+                                  args.force_erase,
+                                  args.no_reboot)
 
                 except Exception as e:
                     if not is_WSL and not is_WSL2 and "win32" not in _platform:
@@ -1427,7 +1433,7 @@ def main():
                         print("\nExtF Erase Finished")
                     # Debug
                     elif args.get_data:
-                        up.get_data()
+                        up.get_data(args.get_data)
                     else:
                         # ajfg. Add checksum parameters and signature
                         up.upload(fw, force=args.force, boot_delay=args.boot_delay,

@@ -23,7 +23,7 @@ if [ $? -ne 0 ]; then
    exit -1
 fi
 
-./waf copter -j 4
+./waf copter -j 4 --check-verbose
 if [ $? -ne 0 ]; then
    echo "waf copter"
    exit -1

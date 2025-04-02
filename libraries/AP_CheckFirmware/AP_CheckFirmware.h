@@ -27,6 +27,7 @@
 #include <wolfssl/wolfcrypt/sha256.h>
 #include <wolfssl/wolfcrypt/asn.h>
 #include <wolfssl/wolfcrypt/asn_public.h>
+#include <wolfssl/wolfcrypt/signature.h>
 
 // ajfg
 
@@ -194,9 +195,13 @@ static_assert(sizeof(app_descriptor_signed) == APP_DESCRIPTOR_SIGNED_TOTAL_LENGT
 
 //#define RSA_SIGNATURE_LENGTH   256
 
-struct PACKED ap_secure_data {
+// struct PACKED ap_secure_data {
+    
+struct __attribute__ ((__packed__)) ap_secure_data {
+
     uint8_t sig[8] = AP_PUBLIC_KEY_SIGNATURE;
-    struct PACKED {
+    // struct PACKED {
+    struct __attribute__ ((__packed__)) {
         uint8_t key[AP_PUBLIC_KEY_LEN] = {};
     } public_key[AP_PUBLIC_KEY_MAX_KEYS];
 };

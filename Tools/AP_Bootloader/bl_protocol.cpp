@@ -514,11 +514,11 @@ bootloader(unsigned timeout)
 
     memset(calculated_hash, 0, WC_SHA256_DIGEST_SIZE);
 
-    uint16_t SIGNATURE_LENGTH = 256;
+    const uint16_t SIGNATURE_LENGTH = 256;
     uint16_t signature_index = 0;
     bool     first_block = true;           
 
-    uint8_t received_signature[SIGNATURE_LENGTH];
+    static uint8_t received_signature[SIGNATURE_LENGTH];
 
     memset(received_signature, 0, SIGNATURE_LENGTH);
 
@@ -1310,8 +1310,7 @@ bootloader(unsigned timeout)
                     goto cmd_step4;
                 }
 
-                // uint8_t
-                received_signature[signature_index] = (c & 0xFF);
+                received_signature[signature_index] = c;
                 signature_index ++;
                 if (signature_index >= SIGNATURE_LENGTH) 
                     signature_index = 0;
@@ -1330,6 +1329,7 @@ bootloader(unsigned timeout)
                     goto cmd_bad;
                 }
 
+                /*
                 // Calculate the hash
                 bl_data_short firmware_data;
     
@@ -1342,8 +1342,6 @@ bootloader(unsigned timeout)
                 }
    
                 // Check the signature
-                // int ret = int_check_signature(const_cast<unsigned char *>(received_signature), 
-                //                             256, calculated_hash, sizeof(calculated_hash));     
                 int ret = int_check_signature(received_signature, SIGNATURE_LENGTH, 
                                               calculated_hash, sizeof(calculated_hash));                  
                 if (ret != 0) {
@@ -1351,6 +1349,7 @@ bootloader(unsigned timeout)
                     // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum");
                     goto cmd_fail;
                 }
+                */
 
                 // Next it is the first block
                 first_block = true;
@@ -1442,11 +1441,8 @@ bootloader(unsigned timeout)
             int ret = int_check_signature(received_signature, SIGNATURE_LENGTH, 
                 calculated_hash, sizeof(calculated_hash));
 
-            uint32_t tmp = 99;
-            cout_word(tmp);
-
-            tmp = ret;
-            cout_word(tmp);
+            uint32_t xx = ret;
+            cout_word(xx);
         }
         break;
             
