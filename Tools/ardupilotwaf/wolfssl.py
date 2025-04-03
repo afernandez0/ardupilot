@@ -62,7 +62,6 @@ def build(bld):
 
         # Main configuration is generated using 'configure', which creates the 'options.h'
         # file. The 'user_settings.h' is just a tailoring of that file
-        #  --disable-rng
         wolfssl_task = bld(
             #build libwolfssl.a from WolfSSL sources
             rule="cd ${WOLFSSL_ROOT} && ./configure --enable-static --disable-shared --host=arm-none-eabi CC=arm-none-eabi-gcc AR=arm-none-eabi-ar STRIP=arm-none-eabi-strip RANLIB=arm-none-eabi-ranlib --prefix=${WOLFSSL_BUILDDIR} CFLAGS=\"--specs=nosys.specs -mthumb ${EXTRA_CFLAGS} -DWOLFSSL_USER_SETTINGS -I${WOLFSSL_USER_HEADERS}  -I${BUILDROOT}  -Wno-error=unused-parameter -Wno-error=strict-prototypes \" --enable-cryptonly  --enable-sp=smallrsa2048 --enable-fastmath --enable-rsa --enable-sha --enable-oldtls --enable-tlsv12 --disable-tls13  --disable-ecc --disable-eccshamir --disable-oaep --disable-dh --disable-sha3 --disable-sha224 --disable-md5  --disable-pkcs12 --disable-memory --disable-chacha --disable-poly1305 --disable-sha512 --disable-sha384 --disable-aesgcm --disable-aescbc --disable-aes --disable-kdf --disable-hmac --disable-filesystem --disable-oldnames --disable-examples --disable-crypttests --disable-benchmark && make clean && make && make install",

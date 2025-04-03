@@ -48,7 +48,6 @@ static bool all_zero_public_keys(void)
 int int_check_signature(unsigned char *in_signature, int in_signature_length,
     unsigned char *in_digest, int in_digest_length)
 {
-    /*
     // encSign = in_firmware_signature (calculated)
     unsigned char   encSig[WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ];
     word32          encSigLen = 0;
@@ -115,66 +114,66 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
         wc_FreeRsaKey(pRsaKey);
 
     return ret;
-    */
-
-
-    RsaKey          rsaKey;
-    word32          idx = 0;
-
-    // encSign = in_firmware_signature (calculated)
-    unsigned char   encSig[WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ];
-    word32          encSigLen = 0;
     
-    int ret = 0;
 
-    ret = wc_EncodeSignature(encSig, in_digest, in_digest_length, SHA256h);
-    if (ret < 0) {
-        return -1;
-    }
-    encSigLen = (uint32_t)ret;
 
-    // Initialize the RSA key and decode the DER encoded public key
-    ret = wc_InitRsaKey(&rsaKey, nullptr);
-    if (ret != 0) {
-        return ret;
-    }
+    // RsaKey          rsaKey;
+    // word32          idx = 0;
 
-    for (const auto &public_key : public_keys.public_key) {       
-        // Read the next public key
-        idx = 0;
-        ret = wc_RsaPublicKeyDecode(public_key.key, &idx, &rsaKey, sizeof(public_key.key));
-        if (ret != 0) {
-            break;
-        }
+    // // encSign = in_firmware_signature (calculated)
+    // unsigned char   encSig[WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ];
+    // word32          encSigLen = 0;
+    
+    // int ret = 0;
 
-        /*
-        Parameters:
-            hash_type A hash type from the “enum wc_HashType” such as “WC_HASH_TYPE_SHA256”.
-            sig_type A signature type enum value such as WC_SIGNATURE_TYPE_ECC or WC_SIGNATURE_TYPE_RSA.
-            data Pointer to buffer containing the data to hash.
-            data_len Length of the data buffer.
-            sig Pointer to buffer to output signature.
-            sig_len Length of the signature output buffer.
-            key Pointer to a key structure such as ecc_key or RsaKey.
-            key_len Size of the key structure.
-        */
-        //"WC_SIGNATURE_TYPE_RSA_W_ENC" 
-        ret = wc_SignatureVerifyHash(
-            wc_HashType::WC_HASH_TYPE_SHA256,
-            wc_SignatureType::WC_SIGNATURE_TYPE_RSA,
-            encSig, encSigLen,            
-            in_signature, in_signature_length,
-            &rsaKey, sizeof(rsaKey)
-        );
+    // ret = wc_EncodeSignature(encSig, in_digest, in_digest_length, SHA256h);
+    // if (ret < 0) {
+    //     return -1;
+    // }
+    // encSigLen = (uint32_t)ret;
 
-        if (ret == 0) {
-            break;
-        }
-    }
+    // // Initialize the RSA key and decode the DER encoded public key
+    // ret = wc_InitRsaKey(&rsaKey, nullptr);
+    // if (ret != 0) {
+    //     return ret;
+    // }
 
-    wc_FreeRsaKey(&rsaKey);
+    // for (const auto &public_key : public_keys.public_key) {       
+    //     // Read the next public key
+    //     idx = 0;
+    //     ret = wc_RsaPublicKeyDecode(public_key.key, &idx, &rsaKey, sizeof(public_key.key));
+    //     if (ret != 0) {
+    //         break;
+    //     }
 
-    return ret;
+    //     /*
+    //     Parameters:
+    //         hash_type A hash type from the “enum wc_HashType” such as “WC_HASH_TYPE_SHA256”.
+    //         sig_type A signature type enum value such as WC_SIGNATURE_TYPE_ECC or WC_SIGNATURE_TYPE_RSA.
+    //         data Pointer to buffer containing the data to hash.
+    //         data_len Length of the data buffer.
+    //         sig Pointer to buffer to output signature.
+    //         sig_len Length of the signature output buffer.
+    //         key Pointer to a key structure such as ecc_key or RsaKey.
+    //         key_len Size of the key structure.
+    //     */
+    //     //"WC_SIGNATURE_TYPE_RSA_W_ENC" 
+    //     ret = wc_SignatureVerifyHash(
+    //         wc_HashType::WC_HASH_TYPE_SHA256,
+    //         wc_SignatureType::WC_SIGNATURE_TYPE_RSA,
+    //         encSig, encSigLen,            
+    //         in_signature, in_signature_length,
+    //         &rsaKey, sizeof(rsaKey)
+    //     );
+
+    //     if (ret == 0) {
+    //         break;
+    //     }
+    // }
+
+    // wc_FreeRsaKey(&rsaKey);
+
+    // return ret;
 }
 
 /*
