@@ -135,6 +135,7 @@
 #define PROTO_GET_DATA		  0x44
 #define PROTO_GET_SHA		  0x45
 #define PROTO_GET_SIGNATURE   0x46
+#define PROTO_SET_SIGNATURE   0x47
 
 
 #define PROTO_PROG_MULTI_MAX        64      // maximum PROG_MULTI size
@@ -404,16 +405,17 @@ failure_response(void)
 }
 
 
-static void
-other_response(uint8_t value)
-{
-    uint8_t data[] = {
-        PROTO_INSYNC,
-        value
-    };
+// Test
+// static void
+// other_response(uint8_t value)
+// {
+//     uint8_t data[] = {
+//         PROTO_INSYNC,
+//         value
+//     };
 
-    cout(data, sizeof(data));
-}
+//     cout(data, sizeof(data));
+// }
 
 /**
  * Function to wait for EOC
@@ -506,9 +508,6 @@ bootloader(unsigned timeout)
     unsigned original_timeout = timeout;
 
 #if AP_SIGNED_FIRMWARE
-    // ajfg. Size of the firmware image size
-    uint32_t    firmware_size = 0; 
-
     // Calculate checksum sha256 of the firmware
     uint8_t calculated_hash[WC_SHA256_DIGEST_SIZE];
 
@@ -518,7 +517,7 @@ bootloader(unsigned timeout)
     uint16_t signature_index = 0;
     bool     first_block = true;           
 
-    static uint8_t received_signature[SIGNATURE_LENGTH];
+    uint8_t received_signature[SIGNATURE_LENGTH];
 
     memset(received_signature, 0, SIGNATURE_LENGTH);
 
@@ -925,10 +924,6 @@ bootloader(unsigned timeout)
                 goto cmd_bad;
             }
 
-#if AP_SIGNED_FIRMWARE
-            // Update the size in bytes
-            firmware_size += arg;
-#endif // AP_SIGNED_FIRMWARE
             // save the first words and don't program it until everything else is done
 #if !BOOT_FROM_EXT_FLASH
             if (address < sizeof(first_words)) {
@@ -1282,14 +1277,12 @@ bootloader(unsigned timeout)
             arg = cin(50);
 
             if (arg < 0) {
-                //goto cmd_bad;
-                goto cmd_step1;
+                goto cmd_bad;
             }
 
             // sanity-check arguments. Aligned to 4 bytes 
             if (arg % 4) {
-                //goto cmd_bad;
-                goto cmd_step2;
+                goto cmd_bad;
             }
 
             // arg = len
@@ -1297,8 +1290,7 @@ bootloader(unsigned timeout)
 
             // RSA Signature length
             if (checksum_len > SIGNATURE_LENGTH) {
-                //goto cmd_bad;
-                goto cmd_step3;
+                goto cmd_bad;
             }
 
             // Read the signature
@@ -1306,8 +1298,7 @@ bootloader(unsigned timeout)
                 c = cin(1000);
 
                 if (c < 0) {
-                    // goto cmd_bad;
-                    goto cmd_step4;
+                    goto cmd_bad;
                 }
 
                 received_signature[signature_index] = c;
@@ -1317,8 +1308,7 @@ bootloader(unsigned timeout)
             }
 
             if (!wait_for_eoc(200)) {
-                // goto cmd_bad;
-                goto cmd_step5;
+                goto cmd_bad;
             }
 
             if (first_block) {
@@ -1329,7 +1319,6 @@ bootloader(unsigned timeout)
                     goto cmd_bad;
                 }
 
-                /*
                 // Calculate the hash
                 bl_data_short firmware_data;
     
@@ -1345,20 +1334,18 @@ bootloader(unsigned timeout)
                 int ret = int_check_signature(received_signature, SIGNATURE_LENGTH, 
                                               calculated_hash, sizeof(calculated_hash));                  
                 if (ret != 0) {
-                    // TODO
-                    // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum");
                     goto cmd_fail;
                 }
-                */
 
                 // Next it is the first block
                 first_block = true;
                 signature_index = 0;
 
-                break;
+                // Reset it
+                memset(received_signature, 0, SIGNATURE_LENGTH);
             }
-            break;
         }
+        break;
 
         case PROTO_GET_DATA: {
             // expect EOC
@@ -1378,14 +1365,18 @@ bootloader(unsigned timeout)
             if (xx == 0) {
                 xx = uint32_t(firmware_data.data1);
                 cout_word(xx);
+                xx = uint32_t(firmware_data.length1);
+                cout_word(xx);
                 xx = uint32_t(firmware_data.data2);
+                cout_word(xx);
+                xx = uint32_t(firmware_data.length2);
                 cout_word(xx);
                 xx = uint32_t(firmware_data.offset2);
                 cout_word(xx);
             }
 
-            }
-            break;
+        }
+        break;
 
         case PROTO_GET_SHA: {
             // expect EOC
@@ -1408,6 +1399,9 @@ bootloader(unsigned timeout)
             cout_word(xx);
 
             if (xx == 0) {
+                xx = uint32_t(calculated_hash);
+                cout_word(xx);
+
                 cout((uint8_t *)calculated_hash, WC_SHA256_DIGEST_SIZE);
             }
         }
@@ -1445,7 +1439,78 @@ bootloader(unsigned timeout)
             cout_word(xx);
         }
         break;
-            
+
+        // Set the firmware signature for checking
+        //
+        // command:		    VERIFY_SIGNATURE/<len:1>/<signature:len>/EOC
+        // success reply:	INSYNC/OK
+        // invalid reply:	INSYNC/INVALID
+        //
+        case PROTO_SET_SIGNATURE: {
+            if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
+                // lower chance of random data on a uart triggering erase
+                goto cmd_bad;
+            }
+
+            // expect count
+            led_set(LED_OFF);
+
+            arg = cin(50);
+
+            if (arg < 0) {
+                goto cmd_bad;
+            }
+
+            // sanity-check arguments. Aligned to 4 bytes 
+            if (arg % 4) {
+                goto cmd_bad;
+            }
+
+            // arg = len
+            int  checksum_len = arg;
+
+            // RSA Signature length
+            if (checksum_len > SIGNATURE_LENGTH) {
+                goto cmd_bad;
+            }
+
+            // Read the signature
+            for (int i = 0; i < arg; i++) {
+                c = cin(1000);
+
+                if (c < 0) {
+                    goto cmd_bad;
+                }
+
+                received_signature[signature_index] = c;
+                signature_index ++;
+                if (signature_index >= SIGNATURE_LENGTH) 
+                    signature_index = 0;
+            }
+
+            if (!wait_for_eoc(200)) {
+                goto cmd_bad;
+            }
+
+            if (first_block) {
+                // Next it is the second block
+                first_block = false;
+            } else {
+                // if (!flash_write_flush()) {
+                //     goto cmd_bad;
+                // }
+
+                // Next it is the first block
+                first_block = true;
+                signature_index = 0;
+
+                memset(received_signature, 0, SIGNATURE_LENGTH);
+            }
+        }
+        break;
+
+
+
         // ajfg. V6
         // Update firmware checksum
         // This command must be executed after VERIFY_CHECKSUM
@@ -1609,21 +1674,21 @@ cmd_fail:
         failure_response();
         continue;
 
-// TODO: Remove after testing
-cmd_step1:
-        other_response(1);
-        continue;
-cmd_step2:
-        other_response(2);
-        continue;
-cmd_step3:
-        other_response(3);
-        continue;
-cmd_step4:
-        other_response(4);
-        continue;
-cmd_step5:
-        other_response(55);
-        continue;
+// // TODO: Remove after testing
+// cmd_step1:
+//         other_response(1);
+//         continue;
+// cmd_step2:
+//         other_response(2);
+//         continue;
+// cmd_step3:
+//         other_response(3);
+//         continue;
+// cmd_step4:
+//         other_response(4);
+//         continue;
+// cmd_step5:
+//         other_response(55);
+//         continue;
     }
 }
