@@ -136,7 +136,8 @@
 #define PROTO_GET_SHA		  0x45
 #define PROTO_GET_SIGNATURE   0x46
 #define PROTO_SET_SIGNATURE   0x47
-
+#define PROTO_GET_CHECKSUM    0x48
+#define PROTO_GET_CHECKSUM_PARAMS  0x49
 
 #define PROTO_PROG_MULTI_MAX        64      // maximum PROG_MULTI size
 #define PROTO_READ_MULTI_MAX        255	    // size of the size field
@@ -406,16 +407,16 @@ failure_response(void)
 
 
 // Test
-// static void
-// other_response(uint8_t value)
-// {
-//     uint8_t data[] = {
-//         PROTO_INSYNC,
-//         value
-//     };
+static void
+other_response(uint8_t value)
+{
+    uint8_t data[] = {
+        PROTO_INSYNC,
+        value
+    };
 
-//     cout(data, sizeof(data));
-// }
+    cout(data, sizeof(data));
+}
 
 /**
  * Function to wait for EOC
@@ -515,7 +516,7 @@ bootloader(unsigned timeout)
 
     const uint16_t SIGNATURE_LENGTH = 256;
     uint16_t signature_index = 0;
-    bool     first_block = true;           
+    // bool     first_block = true;           
 
     uint8_t received_signature[SIGNATURE_LENGTH];
 
@@ -1301,22 +1302,37 @@ bootloader(unsigned timeout)
                     goto cmd_bad;
                 }
 
-                received_signature[signature_index] = c;
+                received_signature[signature_index] = (c & 0xFF);
                 signature_index ++;
-                if (signature_index >= SIGNATURE_LENGTH) 
-                    signature_index = 0;
+                if (signature_index >= SIGNATURE_LENGTH) {
+                    //signature_index = 0;
+                    break;
+                }
             }
 
             if (!wait_for_eoc(200)) {
                 goto cmd_bad;
             }
 
+            /*
             if (first_block) {
                 // Next it is the second block
                 first_block = false;
             } else {
                 if (!flash_write_flush()) {
                     goto cmd_bad;
+                }
+            */
+           
+           //Note: The firmware is not complete so it is not possible to 
+           //calculate the full SHA because the first words are not flashed.
+
+           if (signature_index >= SIGNATURE_LENGTH) {
+                signature_index = 0;
+
+                // Flash final words, for the sake of calculating the hash. Boot will do it again
+                if (!flash_write_buffer(0, first_words, RESERVE_LEAD_WORDS)) {
+                    goto cmd_fail;
                 }
 
                 // Calculate the hash
@@ -1326,24 +1342,27 @@ bootloader(unsigned timeout)
                     goto cmd_fail;                
                 }
 
+                memset(calculated_hash, 0, WC_SHA256_DIGEST_SIZE);
                 if (calculate_hash(firmware_data, calculated_hash) != 0) {
                     goto cmd_fail;
                 }
    
                 // Check the signature
                 int ret = int_check_signature(received_signature, SIGNATURE_LENGTH, 
-                                              calculated_hash, sizeof(calculated_hash));                  
+                                            //   calculated_hash, sizeof(calculated_hash));                  
+                                              calculated_hash, WC_SHA256_DIGEST_SIZE);
                 if (ret != 0) {
-                    goto cmd_fail;
+                    goto cmd_step5;
+                    // goto cmd_fail;
                 }
-
+            }
+            
+                /*
                 // Next it is the first block
                 first_block = true;
                 signature_index = 0;
-
-                // Reset it
-                memset(received_signature, 0, SIGNATURE_LENGTH);
             }
+            */
         }
         break;
 
@@ -1353,9 +1372,9 @@ bootloader(unsigned timeout)
                 goto cmd_bad;
             }
 
-            if (!flash_write_flush()) {
-                goto cmd_bad;
-            }
+            // if (!flash_write_flush()) {
+            //     goto cmd_bad;
+            // }
 
             bl_data_short firmware_data;
     
@@ -1384,9 +1403,9 @@ bootloader(unsigned timeout)
                 goto cmd_bad;
             }
 
-            if (!flash_write_flush()) {
-                goto cmd_bad;
-            }
+            // if (!flash_write_flush()) {
+            //     goto cmd_bad;
+            // }
 
             // Calculate the hash
             bl_data_short firmware_data;
@@ -1413,9 +1432,9 @@ bootloader(unsigned timeout)
                 goto cmd_bad;
             }
 
-            if (!flash_write_flush()) {
-                goto cmd_bad;
-            }
+            // if (!flash_write_flush()) {
+            //     goto cmd_bad;
+            // }
 
             cout(received_signature, SIGNATURE_LENGTH/2);
             cout(&received_signature[128], SIGNATURE_LENGTH/2);
@@ -1433,7 +1452,7 @@ bootloader(unsigned timeout)
 
             // Check the signature
             int ret = int_check_signature(received_signature, SIGNATURE_LENGTH, 
-                calculated_hash, sizeof(calculated_hash));
+                calculated_hash, sizeof(calculated_hash), true);
 
             uint32_t xx = ret;
             cout_word(xx);
@@ -1442,13 +1461,17 @@ bootloader(unsigned timeout)
 
         // Set the firmware signature for checking
         //
-        // command:		    VERIFY_SIGNATURE/<len:1>/<signature:len>/EOC
+        // command:		    SET_SIGNATURE/<len:1>/<signature:len>/EOC
         // success reply:	INSYNC/OK
         // invalid reply:	INSYNC/INVALID
         //
         case PROTO_SET_SIGNATURE: {
             if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
                 // lower chance of random data on a uart triggering erase
+                goto cmd_bad;
+            }
+
+            if (!flash_write_flush()) {
                 goto cmd_bad;
             }
 
@@ -1482,34 +1505,31 @@ bootloader(unsigned timeout)
                     goto cmd_bad;
                 }
 
-                received_signature[signature_index] = c;
+                received_signature[signature_index] = (c & 0xFF);
                 signature_index ++;
-                if (signature_index >= SIGNATURE_LENGTH) 
+                if (signature_index >= SIGNATURE_LENGTH) {
                     signature_index = 0;
+                    break;
+                }
             }
 
             if (!wait_for_eoc(200)) {
                 goto cmd_bad;
             }
 
-            if (first_block) {
-                // Next it is the second block
-                first_block = false;
-            } else {
+            // if (first_block) {
+            //     // Next it is the second block
+            //     first_block = false;
+            // } else {
                 // if (!flash_write_flush()) {
                 //     goto cmd_bad;
                 // }
-
-                // Next it is the first block
-                first_block = true;
-                signature_index = 0;
-
-                memset(received_signature, 0, SIGNATURE_LENGTH);
-            }
+            //     // Next it is the first block
+            //     first_block = true;
+            //     signature_index = 0;
+            // }
         }
         break;
-
-
 
         // ajfg. V6
         // Update firmware checksum
@@ -1522,6 +1542,10 @@ bootloader(unsigned timeout)
         case PROTO_UPDATE_CHECKSUM: {
             if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
                 // lower chance of random data on a uart triggering erase
+                goto cmd_bad;
+            }
+
+            if (!flash_write_flush()) {
                 goto cmd_bad;
             }
 
@@ -1572,8 +1596,40 @@ bootloader(unsigned timeout)
             
             // Update the checksum
             memcpy(firmware_checksum, flash_buffer.c, WC_SHA256_DIGEST_SIZE);
-            break;
         }
+        break;
+
+        case PROTO_GET_CHECKSUM: {
+            // expect EOC
+            if (!wait_for_eoc(2)) {
+                goto cmd_bad;
+            }
+
+            // if (!flash_write_flush()) {
+            //     goto cmd_bad;
+            // }
+
+            int32_t xx = verify_checksum_firmware();
+
+            cout_word(xx);
+        }
+        break;
+
+        case PROTO_GET_CHECKSUM_PARAMS: {
+            // expect EOC
+            if (!wait_for_eoc(2)) {
+                goto cmd_bad;
+            }
+
+            // if (!flash_write_flush()) {
+            //     goto cmd_bad;
+            // }
+
+            int32_t xx = verify_checksum_parameters();
+
+            cout_word(xx);
+        }
+        break;
 
         // ajfg. V6
         // Update parameters checksum
@@ -1586,6 +1642,10 @@ bootloader(unsigned timeout)
         case PROTO_UPDATE_PARAMS_CHECKSUM: {
             if (!done_sync || !CHECK_GET_DEVICE_FINISHED(done_get_device_flags)) {
                 // lower chance of random data on a uart triggering erase
+                goto cmd_bad;
+            }
+
+            if (!flash_write_flush()) {
                 goto cmd_bad;
             }
 
@@ -1638,8 +1698,9 @@ bootloader(unsigned timeout)
             
             // Update the checksum
             memcpy(parameters_checksum, flash_buffer.c, WC_SHA256_DIGEST_SIZE);
-            break;
         }
+        break;
+
 #endif //# AP_SIGNED_FIRMWARE
 
         default:
@@ -1687,8 +1748,8 @@ cmd_fail:
 // cmd_step4:
 //         other_response(4);
 //         continue;
-// cmd_step5:
-//         other_response(55);
-//         continue;
+cmd_step5:
+        other_response(55);
+        continue;
     }
 }

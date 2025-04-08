@@ -46,7 +46,7 @@ static bool all_zero_public_keys(void)
 // Calculates the signature of the input hash and compare against
 // the received signature
 int int_check_signature(unsigned char *in_signature, int in_signature_length,
-    unsigned char *in_digest, int in_digest_length)
+    unsigned char *in_digest, int in_digest_length, bool in_debug)
 {
     // encSign = in_firmware_signature (calculated)
     unsigned char   encSig[WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ];
@@ -66,6 +66,12 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
     // Same algorithm as make_secure_fw.py
     encSigLen = wc_EncodeSignature(encSig, in_digest, in_digest_length, SHA256h);
 
+    uint32_t xx = encSigLen;
+    if (in_debug) {
+        cout((uint8_t *)&xx, 4);
+        cout((uint8_t *)&encSig, (WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ));
+    }
+
     for (const auto &public_key : public_keys.public_key) {
 
         // Try next key
@@ -75,6 +81,11 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
             break;
         }
         pRsaKey = &rsaKey;
+        if (in_debug) {
+            xx = ret;
+            cout((uint8_t *)&xx, 4);
+        }
+    
         
         // Read the next public key
         idx = 0;
@@ -82,12 +93,21 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
         if (ret != 0) {
             break;
         }
+        if (in_debug) {
+            xx = ret;
+            cout((uint8_t *)&xx, 4);
+        }
         
         // Verify the signature by decrypting the value
         memset(decSig, 0, sizeof(decSig));
         ret = wc_RsaSSL_Verify(in_signature, in_signature_length, decSig, decSigLen, &rsaKey);
         if (ret < 0) {
             break;
+        }
+        if (in_debug) {
+            xx = ret;
+            cout((uint8_t *)&xx, 4);
+            cout((uint8_t *)&decSig, (WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ));
         }
             
         if (ret != encSigLen) {
@@ -99,6 +119,10 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
         if (XMEMCMP(encSig, decSig, encSigLen) == 0) {
             // Signature ok
             ret = 0;
+            if (in_debug) {
+                xx = 99;
+                cout((uint8_t *)&xx, 4);
+            }
             break;
         }
 
@@ -536,6 +560,7 @@ int32_t calculate_hash(const bl_data_short &in_location, unsigned char *out_buff
     }
 
     wc_Sha256Free(&sha);
+    // wc_Sha256Free(pSha256);
 
     return 0;
 }

@@ -118,6 +118,10 @@ def get_checksums(in_firmware_digest):
         ba = bytearray(checksum_buffer)
         tmp_params = struct.pack("<32s", ba)
         # print(ba.hex())
+
+        # Save to a file
+        open("params_checksum.bin", 'wb').write(tmp_params)
+
     
     output_buffer = output_buffer + tmp_params
     # print(output_buffer)
@@ -212,7 +216,7 @@ desc = struct.pack("<IQ256s", sig_len+8, sig_version, signature)
 # Extract the two checksums; 64 bytes 
 packed_chksums = get_checksums(digest)
 
-if sys.argv[4] is not None:
+if len(sys.argv) > 4 and  sys.argv[4] is not None:
     packed_chksums = [0x0] * 64
     packed_chksums = bytearray(packed_chksums)
 
@@ -246,6 +250,7 @@ checksum_file = save_checksum(apj_file, digest)
 signature_file = save_signature(apj_file, signature_orig)
 Logs.info("Firmware signature saved into file: %s", signature_file)
 
+# Save the new firmware binary with the signature and checksums
 open("new_boot.bin", 'wb').write(img1)
 
 

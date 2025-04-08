@@ -77,7 +77,7 @@ uint8_t *find_parameters(uint32_t &out_image_size, unsigned char **out_parameter
 
 // ajfg
 int int_check_signature(unsigned char *in_signature, int in_signature_length,
-    unsigned char *in_digest, int in_digest_length);
+    unsigned char *in_digest, int in_digest_length, bool in_debug=false);
 
 enum class check_fw_result_t : uint8_t {
     CHECK_FW_OK = 0,

@@ -372,6 +372,8 @@ Util::FlashBootloader Util::flash_bootloader()
 #if HAL_ENABLE_SAVE_PERSISTENT_PARAMS
         if (persistent_params.get_length()) {
             const uint32_t ofs = hal.flash->getpagesize(0) - persistent_params.get_length();
+            Debug("Saving parameters: @%08x\n", ((unsigned int)(addr+ofs)));
+
             hal.flash->write(addr+ofs, persistent_params.get_string(), persistent_params.get_length());
         }
 #endif
