@@ -53,9 +53,9 @@ struct bl_data_short {
     {}    
 };
 
-int32_t verify_checksums(void);
-int32_t verify_checksum_firmware();
-int32_t verify_checksum_parameters();
+uint32_t verify_checksums(void);
+uint32_t verify_checksum_firmware(bool in_debug=false);
+uint32_t verify_checksum_parameters(bool in_debug=false);
 
 int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigned char *out_buffer);
 
@@ -95,6 +95,7 @@ enum class check_fw_result_t : uint8_t {
     FAIL_REASON_WOLF_ENCODE_SIGNATURE=20,
     FAIL_REASON_HASH_FAILED=21,
     FAIL_REASON_CHECKSUM_NOT_FOUND=22,
+    FAIL_REASON_BAD_CHECKSUM=23,
 };
 
 #ifndef FW_MAJOR

@@ -248,6 +248,9 @@ class uploader(object):
     GET_DATA = b'\x44'
     GET_SHA = b'\x45'
     GET_SIGNATURE  = b'\x46'
+    SET_SIGNATURE  = b'\x47'
+    GET_CHECKSUM   = b'\x48'
+    GET_CHECKSUM_PARAMS  = b'\x49'
 
     INFO_BL_REV     = b'\x01'        # bootloader protocol revision
     BL_REV_MIN      = 2              # minimum supported bootloader protocol
@@ -991,6 +994,8 @@ class uploader(object):
             # Send Check Signature
             try:
                 self.__verify_signature(signature_file)
+                print(" ")
+                print("Signature: OK")
             except Exception as e:
                 # print("\nERROR: Signature does not match. Checksums in the board has not been updated")
                 print("Exception: ", e)
@@ -1025,8 +1030,49 @@ class uploader(object):
             self.__get_sha()
         elif in_idx == "3":
             self.__get_signature()
+        elif in_idx == "4":
+            self.__get_checksum()
+        elif in_idx == "5":
+            self.__get_checksum_params()
         else:
             return
+
+    def set_signature(self, in_filename):
+        print("\n", end='')
+
+        # Read the signature from the file
+        signature_buffer = self.__load_file(in_filename)
+        if signature_buffer is None:
+            raise RuntimeError("Error reading signature file")
+
+        label="Set signature "
+        groups = self.__split_len(signature_buffer, uploader.PROG_MULTI_MAX)
+
+        # print("    *** Signature size: ", len(signature_buffer))
+        # print("    *** Number groups: ", len(groups))
+
+        uploadProgress = 0
+        for the_bytes in groups:
+            # This is critical
+            if runningPython3:
+                the_length = len(the_bytes).to_bytes(1, byteorder='big')
+            else:
+                the_length = chr(len(the_bytes))
+                
+            # print("       Group len: ", len(the_bytes))
+            self.__send(uploader.SET_SIGNATURE)
+            self.__send(the_length)
+            self.__send(the_bytes)
+            self.__send(uploader.EOC)
+            self.__getSync()
+
+            # Print upload progress (throttled, so it does not delay upload progress)
+            uploadProgress += 1
+            if uploadProgress % 256 == 0:
+                self.__drawProgressBar("label", uploadProgress, len(groups))
+
+        self.__drawProgressBar(label, 100, 100)
+        print(" ")
 
 
     # ajfg. Load a binary file and stores it in a buffer 
@@ -1059,6 +1105,9 @@ class uploader(object):
         label="Signature "
         groups = self.__split_len(signature_buffer, uploader.PROG_MULTI_MAX)
 
+        # print("    *** Signature size: ", len(signature_buffer))
+        # print("    *** Number groups: ", len(groups))
+
         uploadProgress = 0
         for the_bytes in groups:
             # This is critical
@@ -1067,6 +1116,7 @@ class uploader(object):
             else:
                 the_length = chr(len(the_bytes))
                 
+            # print("       Group len: ", len(the_bytes))
             self.__send(uploader.VERIFY_SIGNATURE)
             self.__send(the_length)
             self.__send(the_bytes)
@@ -1089,11 +1139,15 @@ class uploader(object):
         print("   ret = ", ret)
         if ret == 0:
             report_data1 = self.__recv_int()
+            report_len1 = self.__recv_int()
             report_data2 = self.__recv_int()
+            report_len2 = self.__recv_int()
             report_offset2 = self.__recv_int()
-            print(f"   data1 = {report_data1}, {report_data1:0x}")
-            print(f"   data2 = {report_data2}, {report_data2:0x}")
-            print(f"   offset = {report_offset2}, {report_offset2:0x}")
+            print(f"   data1 = {report_data1}, 0x{report_data1:0x}")
+            print(f"   len1 = {report_len1}, 0x{report_len1:0x}")
+            print(f"   data2 = {report_data2}, 0x{report_data2:0x}")
+            print(f"   len2 = {report_len2}, 0x{report_len2:0x}")            
+            print(f"   offset = {report_offset2}, 0x{report_offset2:0x}")
         
         self.__getSync()
 
@@ -1106,6 +1160,9 @@ class uploader(object):
         print("   ret = ", ret)
         if ret == 0:
             # Read the SHA Hash 
+            address_calculated_hash = self.__recv_int()
+            print(f"   address = {address_calculated_hash}, 0x{address_calculated_hash:0x}")
+
             calculated_hash=self.__recv(32)
             print("   sha = [", calculated_hash.hex(), "]")
 
@@ -1122,6 +1179,73 @@ class uploader(object):
 
         ret = self.__recv_int()
         print("   ret = ", ret)
+        encoded_signature = self.__recv(64)
+        print("   encoded signature (calculated hash) = [", encoded_signature.hex(), "]" )
+
+        for i in range(3):
+            print("   i = ", i)
+                  
+            # InitRSA, 
+            ret = self.__recv_int()
+            print("        ret = ", ret)
+            if ret == 99:
+                print(" ==== break ===")
+                break
+
+            # PublicDecode, 
+            ret = self.__recv_int()
+            print("        ret = ", ret)
+
+            # SSLVerify x2, if ok 99
+            ret = self.__recv_int()
+            print("        ret = ", ret)
+
+            calculated_signature = self.__recv(64)
+            print("   calculated signature (from received signature) = [", calculated_signature.hex(), "]" )
+
+        ret = self.__recv_int()
+        print("   ret = ", ret)                                                                                                                 
+
+        self.__getSync()
+
+
+    def __get_checksum(self):
+        self.__send(uploader.GET_CHECKSUM +
+            uploader.EOC)
+
+        print("")
+
+        firmware_address = self.__recv_int()
+        print(f"   firmware_checksum = {firmware_address}, 0x{firmware_address:0x}")
+
+        calculated_hash=self.__recv(32)
+        print("   sha = [", calculated_hash.hex(), "]")
+
+        firmware_checksum=self.__recv(32)
+        print("   firmware_checksum = [", firmware_checksum.hex(), "]")
+
+        ret = self.__recv_int()
+        print("   ret = ", ret)                                                                                                                 
+
+        self.__getSync()
+
+    def __get_checksum_params (self):
+        self.__send(uploader.GET_CHECKSUM_PARAMS +
+            uploader.EOC)
+
+        print("")
+
+        firmware_address = self.__recv_int()
+        print(f"   firmware_checksum = {firmware_address}, 0x{firmware_address:0x}")
+
+        calculated_hash=self.__recv(32)
+        print("   sha = [", calculated_hash.hex(), "]")
+
+        parameters_checksum=self.__recv(32)
+        print("   parameters_checksum = [", parameters_checksum.hex(), "]")
+
+        ret = self.__recv_int()
+        print("   ret = ", ret)                                                                                                                 
 
         self.__getSync()
 
@@ -1363,6 +1487,7 @@ def main():
     parser.add_argument('--force-erase', action="store_true", help="Do not check for pre cleared flash, always erase the chip")
     # ajfg
     parser.add_argument('--get-data',  default=False, help='Retrieve the data (data = 1, SHA256 = 2, signature = 3, checksum=4) of the firmware')
+    parser.add_argument('--set-signature', default=False, help='Set the signature from a file')
     parser.add_argument('--no-reboot', action='store_true', default=False, help='Do not reboot the board after upload')
     parser.add_argument('firmware', nargs="?", action="store", default=None, help="Firmware file to be uploaded")
     parser.add_argument('signature', nargs="?", action='store', default=None, help='Firmware signature filename')
@@ -1379,7 +1504,7 @@ def main():
         sys.exit(1)
 
     # Load the firmware file
-    if not args.download and not args.identify and not args.erase_extflash:
+    if not args.download and not args.identify and not args.erase_extflash :
         fw = firmware(args.firmware)
         print("Loaded firmware for %x,%x, size: %d bytes, waiting for the bootloader..." %
               (fw.property('board_id'), fw.property('board_revision'), fw.property('image_size')))
@@ -1434,6 +1559,8 @@ def main():
                     # Debug
                     elif args.get_data:
                         up.get_data(args.get_data)
+                    elif args.set_signature:
+                        up.set_signature(args.set_signature)
                     else:
                         # ajfg. Add checksum parameters and signature
                         up.upload(fw, force=args.force, boot_delay=args.boot_delay,

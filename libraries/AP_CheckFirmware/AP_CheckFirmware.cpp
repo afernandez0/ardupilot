@@ -241,9 +241,8 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
      */
     int ret = 0;
 
-    // Test 
-    // ret = int_check_signature(const_cast<unsigned char *>(&ad->signature[sizeof(sig_version)]), 
-    //                             ad->signature_length, digest, sizeof(digest));
+    ret = int_check_signature(const_cast<unsigned char *>(&ad->signature[sizeof(sig_version)]), 
+                                ad->signature_length-sizeof(sig_version), digest, sizeof(digest));
 
     //wolfCrypt_Cleanup();
 
@@ -421,36 +420,41 @@ extern const AP_HAL::HAL &hal;
   Verify the checksum of the firmware and the persistent parameters
   If they do not match, boot will fail
 */
-int32_t verify_checksums(void)
+uint32_t verify_checksums(void)
 {
-    int32_t output = 0;
+    uint32_t output = 0;
 
-    //output = verify_checksum_firmware();
+    output = verify_checksum_firmware();
 
-    //output |= verify_checksum_parameters();
+    output |= verify_checksum_parameters();
 
     return output;
 }
 
-int32_t verify_checksum_firmware()
+uint32_t verify_checksum_firmware(bool in_debug)
 {
     // Get the firmware checksum  
     uint32_t image_size = 0;
     uint8_t *firmware_checksum = find_firmware(image_size);
 
+    if (in_debug) {
+        uint32_t xx = uint32_t(firmware_checksum);
+        cout((uint8_t *)&xx, 4);
+    }
+
     if (firmware_checksum == nullptr) {
-        return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND) * -1);
+        return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND));
     }
 
     const uint8_t some_buffer[WC_SHA256_DIGEST_SIZE] {};
     if (memcmp(firmware_checksum, some_buffer, WC_SHA256_DIGEST_SIZE) == 0) {
-        return 0;
+        return static_cast<uint32_t>(check_fw_result_t::CHECK_FW_OK);
     }
 
     // Get area of the Firmware
     bl_data_short firmware_data;
     if (get_firmware_location(firmware_data) != 0) {
-        return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND) * -1);
+        return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND));
     }
         
     // Calculate checksum sha256 of the firmware   
@@ -458,30 +462,38 @@ int32_t verify_checksum_firmware()
 
     calculate_hash(firmware_data, calculated_hash);
 
-    // Compare checksums
-    if (memcmp(firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
-        // TODO
-        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum");
-        return -6;
+    if (in_debug) {
+        cout((uint8_t *)calculated_hash, WC_SHA256_DIGEST_SIZE);
+        cout((uint8_t *)firmware_checksum, WC_SHA256_DIGEST_SIZE);
     }
 
-    return 0;
+    // Compare checksums
+    if (memcmp(firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
+        return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_BAD_CHECKSUM));
+    }
+
+    return static_cast<uint32_t>(check_fw_result_t::CHECK_FW_OK);
 }
 
-int32_t verify_checksum_parameters()
+uint32_t verify_checksum_parameters(bool in_debug)
 {
     unsigned char *parameters_address = nullptr;
 
     uint32_t parameters_size = 0;
     uint8_t *parameters_checksum = find_parameters(parameters_size, &parameters_address);
 
+    if (in_debug) {
+        uint32_t xx = uint32_t(parameters_checksum);
+        cout((uint8_t *)&xx, 4);
+    }
+
     if (parameters_checksum == nullptr) {
-        return (static_cast<int32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND) * -1);
+        return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND));
     }
 
     const uint8_t some_buffer[WC_SHA256_DIGEST_SIZE] {};
     if (memcmp(parameters_checksum, some_buffer, WC_SHA256_DIGEST_SIZE) == 0) {
-        return 0;
+        return static_cast<uint32_t>(check_fw_result_t::CHECK_FW_OK);
     }
 
     // Calculate checksum sha256 of the firmware   
@@ -489,14 +501,17 @@ int32_t verify_checksum_parameters()
 
     calculate_hash(parameters_address, parameters_size, calculated_hash);
 
-    // Compare checksums
-    if (memcmp(parameters_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
-        // TODO
-        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Incorrect firmware checksum");
-        return -6;
+    if (in_debug) {
+        cout((uint8_t *)calculated_hash, WC_SHA256_DIGEST_SIZE);
+        cout((uint8_t *)parameters_checksum, WC_SHA256_DIGEST_SIZE);
     }
 
-    return 0;
+    // Compare checksums
+    if (memcmp(parameters_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
+        return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_BAD_CHECKSUM));
+    }
+
+    return static_cast<uint32_t>(check_fw_result_t::CHECK_FW_OK);
 }
 
 int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigned char *out_buffer)

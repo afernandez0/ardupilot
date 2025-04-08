@@ -1605,12 +1605,7 @@ bootloader(unsigned timeout)
                 goto cmd_bad;
             }
 
-            // if (!flash_write_flush()) {
-            //     goto cmd_bad;
-            // }
-
-            int32_t xx = verify_checksum_firmware();
-
+            uint32_t xx = verify_checksum_firmware(true);
             cout_word(xx);
         }
         break;
@@ -1621,12 +1616,7 @@ bootloader(unsigned timeout)
                 goto cmd_bad;
             }
 
-            // if (!flash_write_flush()) {
-            //     goto cmd_bad;
-            // }
-
-            int32_t xx = verify_checksum_parameters();
-
+            uint32_t xx = verify_checksum_parameters(true);
             cout_word(xx);
         }
         break;

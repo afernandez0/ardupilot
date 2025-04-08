@@ -42,5 +42,4 @@ if [ $? -ne 0 ]; then
 fi
 
 # Command for uploading the new Firmware
-echo "Tools/scripts/uploader.py --port /dev/ttyACM0 build/${BOARD_NAME}/bin/arducopter.apj build/${BOARD_NAME}/bin/arducopter_apj.sign" 
-
+echo "Tools/scripts/uploader.py --port /dev/ttyACM0 build/${BOARD_NAME}/bin/arducopter.apj build/${BOARD_NAME}/bin/arducopter_apj.sign  build/${BOARD_NAME}/bin/arducopter_apj.chksum   params_checksum.bin"
