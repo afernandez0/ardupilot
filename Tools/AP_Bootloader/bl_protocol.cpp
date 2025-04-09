@@ -1305,7 +1305,6 @@ bootloader(unsigned timeout)
                 received_signature[signature_index] = (c & 0xFF);
                 signature_index ++;
                 if (signature_index >= SIGNATURE_LENGTH) {
-                    //signature_index = 0;
                     break;
                 }
             }
@@ -1313,20 +1312,9 @@ bootloader(unsigned timeout)
             if (!wait_for_eoc(200)) {
                 goto cmd_bad;
             }
-
-            /*
-            if (first_block) {
-                // Next it is the second block
-                first_block = false;
-            } else {
-                if (!flash_write_flush()) {
-                    goto cmd_bad;
-                }
-            */
-           
+          
            //Note: The firmware is not complete so it is not possible to 
            //calculate the full SHA because the first words are not flashed.
-
            if (signature_index >= SIGNATURE_LENGTH) {
                 signature_index = 0;
 
@@ -1355,14 +1343,7 @@ bootloader(unsigned timeout)
                     goto cmd_step5;
                     // goto cmd_fail;
                 }
-            }
-            
-                /*
-                // Next it is the first block
-                first_block = true;
-                signature_index = 0;
-            }
-            */
+            }            
         }
         break;
 
@@ -1371,10 +1352,6 @@ bootloader(unsigned timeout)
             if (!wait_for_eoc(2)) {
                 goto cmd_bad;
             }
-
-            // if (!flash_write_flush()) {
-            //     goto cmd_bad;
-            // }
 
             bl_data_short firmware_data;
     
@@ -1403,10 +1380,6 @@ bootloader(unsigned timeout)
                 goto cmd_bad;
             }
 
-            // if (!flash_write_flush()) {
-            //     goto cmd_bad;
-            // }
-
             // Calculate the hash
             bl_data_short firmware_data;
 
@@ -1431,10 +1404,6 @@ bootloader(unsigned timeout)
             if (!wait_for_eoc(2)) {
                 goto cmd_bad;
             }
-
-            // if (!flash_write_flush()) {
-            //     goto cmd_bad;
-            // }
 
             cout(received_signature, SIGNATURE_LENGTH/2);
             cout(&received_signature[128], SIGNATURE_LENGTH/2);
@@ -1516,18 +1485,6 @@ bootloader(unsigned timeout)
             if (!wait_for_eoc(200)) {
                 goto cmd_bad;
             }
-
-            // if (first_block) {
-            //     // Next it is the second block
-            //     first_block = false;
-            // } else {
-                // if (!flash_write_flush()) {
-                //     goto cmd_bad;
-                // }
-            //     // Next it is the first block
-            //     first_block = true;
-            //     signature_index = 0;
-            // }
         }
         break;
 

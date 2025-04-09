@@ -18,7 +18,6 @@
 
 #if AP_CHECK_FIRMWARE_ENABLED
 
-// ajfg
 #ifdef HAL_BOOTLOADER_BUILD
 #include <wolfssl/options.h>
 #include <wolfssl/wolfcrypt/settings.h>
@@ -29,7 +28,6 @@
 #include <wolfssl/wolfcrypt/asn_public.h>
 #include <wolfssl/wolfcrypt/signature.h>
 
-// ajfg
 
 struct bl_data_short {
     uint32_t length1;
@@ -69,13 +67,13 @@ uint8_t *find_parameters(uint32_t &out_image_size, unsigned char **out_parameter
 #else 
 
 #ifndef WC_SHA256_DIGEST_SIZE
-// ajfg. Copy from SHA256 WolfSSL for compilation purposess
+// Copy from SHA256 WolfSSL for compilation purposess
 #define WC_SHA256_DIGEST_SIZE    32
 #endif
 
 #endif
 
-// ajfg
+
 int int_check_signature(unsigned char *in_signature, int in_signature_length,
     unsigned char *in_digest, int in_digest_length, bool in_debug=false);
 
@@ -133,7 +131,7 @@ struct app_descriptor_unsigned {
     // total size of firmware image in bytes
     uint32_t image_size = 0;
     uint32_t git_hash = 0;
-    // ajfg
+    
     uint8_t firmware_checksum[WC_SHA256_DIGEST_SIZE] = {};
     uint8_t defaults_checksum[WC_SHA256_DIGEST_SIZE] = {};
 
@@ -158,10 +156,10 @@ struct app_descriptor_signed {
 
     // firmware signature
     uint32_t signature_length = 0;
-    // ajfg. Previous  72 = 8 + 64 (sigver, sig)
+    //     . Previous  72 = 8 + 64 (sigver, sig)
     //       Now      264 = 8 + 256 (sigver, sig)
     uint8_t signature[264] = {};
-    // ajfg
+    
     uint8_t firmware_checksum[WC_SHA256_DIGEST_SIZE] = {};
     uint8_t defaults_checksum[WC_SHA256_DIGEST_SIZE] = {};
 
@@ -188,21 +186,19 @@ static_assert(sizeof(app_descriptor_signed) == APP_DESCRIPTOR_SIGNED_TOTAL_LENGT
 
 #if AP_SIGNED_FIRMWARE
 
-// ajfg. Previous  32
+//       Previous  32
 //       Now      294
 #define AP_PUBLIC_KEY_LEN 294
 #define AP_PUBLIC_KEY_MAX_KEYS 3
 #define AP_PUBLIC_KEY_SIGNATURE {0x4e, 0xcf, 0x4e, 0xa5, 0xa6, 0xb6, 0xf7, 0x29}
 
-//#define RSA_SIGNATURE_LENGTH   256
 
-// struct PACKED ap_secure_data {
-    
-struct __attribute__ ((__packed__)) ap_secure_data {
+struct PACKED ap_secure_data {
+// struct __attribute__ ((__packed__)) ap_secure_data {
 
     uint8_t sig[8] = AP_PUBLIC_KEY_SIGNATURE;
-    // struct PACKED {
-    struct __attribute__ ((__packed__)) {
+    struct PACKED {
+    //struct __attribute__ ((__packed__)) {
         uint8_t key[AP_PUBLIC_KEY_LEN] = {};
     } public_key[AP_PUBLIC_KEY_MAX_KEYS];
 };

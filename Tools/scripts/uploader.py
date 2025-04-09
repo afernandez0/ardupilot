@@ -972,10 +972,6 @@ class uploader(object):
             self.port.baudrate = self.baudrate_bootloader_flash
             self.__sync()
 
-        # if signature_file is not None:
-        #     # Create a backup. It is slow
-        #     fw_backup = self.__download_to_buffer("Backup    ", self.fw_maxsize)
-
         if (fw.property('extf_image_size', 0) > 0):
             self.erase_extflash("Erase ExtF     ", fw.property('extf_image_size', 0))
             self.__program_extf("Program ExtF   ", fw)
@@ -999,12 +995,6 @@ class uploader(object):
             except Exception as e:
                 # print("\nERROR: Signature does not match. Checksums in the board has not been updated")
                 print("Exception: ", e)
-
-                # Does not fully work
-                # print("Reverting firmware")
-                # self.__erase("Erase     ")
-                # fw.image = fw_backup
-                # self.__program("Program:  ", fw)
                 return
             
         if firmware_filename is not None and parameters_filename is not None:
@@ -1048,9 +1038,6 @@ class uploader(object):
         label="Set signature "
         groups = self.__split_len(signature_buffer, uploader.PROG_MULTI_MAX)
 
-        # print("    *** Signature size: ", len(signature_buffer))
-        # print("    *** Number groups: ", len(groups))
-
         uploadProgress = 0
         for the_bytes in groups:
             # This is critical
@@ -1059,7 +1046,6 @@ class uploader(object):
             else:
                 the_length = chr(len(the_bytes))
                 
-            # print("       Group len: ", len(the_bytes))
             self.__send(uploader.SET_SIGNATURE)
             self.__send(the_length)
             self.__send(the_bytes)
@@ -1075,7 +1061,7 @@ class uploader(object):
         print(" ")
 
 
-    # ajfg. Load a binary file and stores it in a buffer 
+    # Load a binary file and stores it in a buffer 
     def __load_file(self, in_filename):
         # Read the signature from the file
         signature_buffer = None
@@ -1105,9 +1091,6 @@ class uploader(object):
         label="Signature "
         groups = self.__split_len(signature_buffer, uploader.PROG_MULTI_MAX)
 
-        # print("    *** Signature size: ", len(signature_buffer))
-        # print("    *** Number groups: ", len(groups))
-
         uploadProgress = 0
         for the_bytes in groups:
             # This is critical
@@ -1116,7 +1099,6 @@ class uploader(object):
             else:
                 the_length = chr(len(the_bytes))
                 
-            # print("       Group len: ", len(the_bytes))
             self.__send(uploader.VERIFY_SIGNATURE)
             self.__send(the_length)
             self.__send(the_bytes)

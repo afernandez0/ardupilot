@@ -42,7 +42,6 @@ static bool all_zero_public_keys(void)
     return true;
 }
 
-// ajfg
 // Calculates the signature of the input hash and compare against
 // the received signature
 int int_check_signature(unsigned char *in_signature, int in_signature_length,
@@ -138,72 +137,12 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
         wc_FreeRsaKey(pRsaKey);
 
     return ret;
-    
-
-
-    // RsaKey          rsaKey;
-    // word32          idx = 0;
-
-    // // encSign = in_firmware_signature (calculated)
-    // unsigned char   encSig[WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ];
-    // word32          encSigLen = 0;
-    
-    // int ret = 0;
-
-    // ret = wc_EncodeSignature(encSig, in_digest, in_digest_length, SHA256h);
-    // if (ret < 0) {
-    //     return -1;
-    // }
-    // encSigLen = (uint32_t)ret;
-
-    // // Initialize the RSA key and decode the DER encoded public key
-    // ret = wc_InitRsaKey(&rsaKey, nullptr);
-    // if (ret != 0) {
-    //     return ret;
-    // }
-
-    // for (const auto &public_key : public_keys.public_key) {       
-    //     // Read the next public key
-    //     idx = 0;
-    //     ret = wc_RsaPublicKeyDecode(public_key.key, &idx, &rsaKey, sizeof(public_key.key));
-    //     if (ret != 0) {
-    //         break;
-    //     }
-
-    //     /*
-    //     Parameters:
-    //         hash_type A hash type from the “enum wc_HashType” such as “WC_HASH_TYPE_SHA256”.
-    //         sig_type A signature type enum value such as WC_SIGNATURE_TYPE_ECC or WC_SIGNATURE_TYPE_RSA.
-    //         data Pointer to buffer containing the data to hash.
-    //         data_len Length of the data buffer.
-    //         sig Pointer to buffer to output signature.
-    //         sig_len Length of the signature output buffer.
-    //         key Pointer to a key structure such as ecc_key or RsaKey.
-    //         key_len Size of the key structure.
-    //     */
-    //     //"WC_SIGNATURE_TYPE_RSA_W_ENC" 
-    //     ret = wc_SignatureVerifyHash(
-    //         wc_HashType::WC_HASH_TYPE_SHA256,
-    //         wc_SignatureType::WC_SIGNATURE_TYPE_RSA,
-    //         encSig, encSigLen,            
-    //         in_signature, in_signature_length,
-    //         &rsaKey, sizeof(rsaKey)
-    //     );
-
-    //     if (ret == 0) {
-    //         break;
-    //     }
-    // }
-
-    // wc_FreeRsaKey(&rsaKey);
-
-    // return ret;
 }
 
 /*
   check a signature against bootloader keys
  */
-// ajfg: This pragma extends the frame so the compiler does not complain about
+// This pragma extends the frame so the compiler does not complain about
 // the extra size
 #pragma GCC diagnostic error "-Wframe-larger-than=5200"
 static check_fw_result_t check_firmware_signature(const app_descriptor_signed *ad,
@@ -214,7 +153,7 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
         return check_fw_result_t::CHECK_FW_OK;
     }
 
-    // ajfg. Previous  72 = 8 + 64 (sigver, sig)
+    //       Previous  72 = 8 + 64 (sigver, sig)
     //       Now      264 = 8 + 256 (sigver, sig)
     if (ad->signature_length != 264) {
         return check_fw_result_t::FAIL_REASON_BAD_FIRMWARE_SIGNATURE;
@@ -222,10 +161,6 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
     if (memcmp((const uint8_t*)&sig_version, ad->signature, sizeof(sig_version)) != 0) {
         return check_fw_result_t::FAIL_REASON_BAD_FIRMWARE_SIGNATURE;
     }
-
-    // if (wolfCrypt_Init() != 0) {
-    //     return check_fw_result_t::FAIL_REASON_WOLF_INIT_FAILED;
-    // }
 
     // Calculate firmware hash
     bl_data_short   firmware_data(const_cast<uint8_t *>(flash1), len1, 
@@ -243,8 +178,6 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
 
     ret = int_check_signature(const_cast<unsigned char *>(&ad->signature[sizeof(sig_version)]), 
                                 ad->signature_length-sizeof(sig_version), digest, sizeof(digest));
-
-    //wolfCrypt_Cleanup();
 
     // none of the public keys matched
     if (ret == 0)
@@ -410,7 +343,7 @@ void check_firmware_print(void)
 
 
 
-// ajfg
+
 #if defined(HAL_BOOTLOADER_BUILD)
 
 extern const AP_HAL::HAL &hal;
@@ -519,33 +452,24 @@ int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigne
     // Calculate checksum sha256 of the firmware   
     int           ret = -1;
     wc_Sha256     sha256;
-    //wc_Sha256*    pSha256 = nullptr;
 
     ret = wc_InitSha256(&sha256);
     if (ret != 0) {
-        // TODO
-        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Unable to initialize SHA256");
         return -3;
     }
-    // pSha256 = &sha256;
 
     // Calculate the checksum of the whole firmware
     ret = wc_Sha256Update(&sha256, in_buffer, in_size);
     if (ret != 0) {
-        // TODO
-        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Error calculating Sha256");
         return -4;
     }
 
     ret = wc_Sha256Final(&sha256, out_buffer);
     if (ret != 0) {
-        // TODO
-        // GCS_SEND_TEXT(MAV_SEVERITY_INFO, "Error calculating Sha256");
         return -5;
     }
         
     wc_Sha256Free(&sha256);
-    // wc_Sha256Free(pSha256);
 
     return 0;
 }

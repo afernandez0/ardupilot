@@ -62,9 +62,6 @@ key_len = 294
 
 img = open(args.bootloader, 'rb').read()
 
-# Temp 
-open("bootloader_copy.bin", "wb").write(img)
-
 offset = img.find(descriptor)
 if offset == -1:
     Logs.error("Failed to find descriptor: %s" % descriptor)

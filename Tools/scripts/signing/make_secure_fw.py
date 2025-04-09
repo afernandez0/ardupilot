@@ -68,7 +68,6 @@ def save_checksum(in_filename: str, in_checksum: any):
     # Save the binary file 
     binary_name = in_filename.replace(".", "_") + ".chksum"
     with open(binary_name, "wb") as nf:
-        # nf.write( bytes.fromhex(line_parts[0]) )
         nf.write(in_checksum.digest())
 
     return binary_name
@@ -85,7 +84,6 @@ def save_signature(in_filename: str, in_signature: any):
     # Save the binary file 
     binary_name = in_filename.replace(".", "_") + ".sign"
     with open(binary_name, "wb") as nf:
-        # nf.write( bytes.fromhex(line_parts[0]) )
         nf.write(in_signature)
 
     return binary_name 
@@ -145,8 +143,6 @@ if len(sys.argv) != 4 and len(sys.argv) != 5:
     print("  PRIVATE_KEY_FILE. Key file must be generated with 'generate_keys.py' script")
     print("  DEFAULTS_CHK_FILE. Default parameters checksum file")
     print(" ")
-    # $ Tools/scripts/signing/make_secure_fw.py build/CubeOrange/bin/arducopter.apj  aa_private_key.dat   build/CubeOrange/bin/arducopter_apj.chksum 
-    # checksum file = build/CubeOrange/bin/arducopter_apj.chksum 
     sys.exit(1)
 
 
@@ -154,7 +150,6 @@ if len(sys.argv) != 4 and len(sys.argv) != 5:
 key_len = 1192
 sig_len = 256
 
-# NOTE: Should these two values updated for RSA 2048?
 sig_version = 30437
 # Signed descriptor 
 descriptor = b'\x41\xa3\xe5\xf2\x65\x69\x92\x07'
@@ -188,7 +183,6 @@ if offset == -1:
     sys.exit(1)
 
 offset += 8
-# ajfg
 # NOTE: Previous 92 = 16 + 76 (siglen, sigver, sig) 
 #       Now     348 = 16 + 268 (siglen, sigver, sig) + 64 (two checksums)
 desc_len = 348
@@ -252,7 +246,4 @@ Logs.info("Firmware signature saved into file: %s", signature_file)
 
 # Save the new firmware binary with the signature and checksums
 open("new_boot.bin", 'wb').write(img1)
-
-
-
 
