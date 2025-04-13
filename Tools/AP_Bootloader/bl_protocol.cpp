@@ -1340,6 +1340,14 @@ bootloader(unsigned timeout)
                                             //   calculated_hash, sizeof(calculated_hash));                  
                                               calculated_hash, WC_SHA256_DIGEST_SIZE);
                 if (ret != 0) {
+                    // revert in case the flash was bad...
+                    memset(first_words, 0xff, sizeof(first_words));
+
+                    // Flash final words
+                    if (!flash_write_buffer(0, first_words, RESERVE_LEAD_WORDS)) {
+                        goto cmd_fail;
+                    }
+
                     goto cmd_step5;
                     // goto cmd_fail;
                 }

@@ -104,7 +104,7 @@ def get_checksums(in_firmware_digest):
         print() 
         print("*** Adding the Defaults checksum")
 
-        checksum_buffer = None
+        checksum_buffer = [0x0] * 32
         try:
             with open(sys.argv[3], "rb") as chk_file:
                 checksum_buffer = chk_file.read()
@@ -117,8 +117,8 @@ def get_checksums(in_firmware_digest):
         tmp_params = struct.pack("<32s", ba)
         # print(ba.hex())
 
-        # Save to a file
-        open("params_checksum.bin", 'wb').write(tmp_params)
+    # Save to a file
+    open("params_checksum.bin", 'wb').write(tmp_params)
 
     
     output_buffer = output_buffer + tmp_params
