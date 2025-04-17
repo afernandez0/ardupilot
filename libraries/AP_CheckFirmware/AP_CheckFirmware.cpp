@@ -100,29 +100,31 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
         // Verify the signature by decrypting the value
         memset(decSig, 0, sizeof(decSig));
         ret = wc_RsaSSL_Verify(in_signature, in_signature_length, decSig, decSigLen, &rsaKey);
-        if (ret < 0) {
-            break;
-        }
         if (in_debug) {
             xx = ret;
             cout((uint8_t *)&xx, 4);
             cout((uint8_t *)&decSig, (WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ));
         }
-            
-        if (ret != encSigLen) {
-            ret = -3;
-            break;
-        }
-
-        // Compare both signatures
-        if (XMEMCMP(encSig, decSig, encSigLen) == 0) {
-            // Signature ok
-            ret = 0;
-            if (in_debug) {
-                xx = 99;
-                cout((uint8_t *)&xx, 4);
+        // It returns the length of the message or error
+        if (ret >= 0) {
+            if (ret != encSigLen) {
+                ret = -3;
+                break;
             }
-            break;
+
+            // Compare both signatures
+            if (XMEMCMP(encSig, decSig, encSigLen) == 0) {
+                if (in_debug) {
+                    xx = 99;
+                    cout((uint8_t *)&xx, 4);
+                }
+                // Signature ok
+                ret = 0;
+                break;
+            }
+        } else {
+            // Reset the flag, for next key
+            ret = 0;
         }
 
         // Free the data structures

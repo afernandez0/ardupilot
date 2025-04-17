@@ -1169,18 +1169,18 @@ class uploader(object):
                   
             # InitRSA, 
             ret = self.__recv_int()
-            print("        ret = ", ret)
+            print("        InitRSA.ret = ", ret)
             if ret == 99:
                 print(" ==== break ===")
                 break
 
             # PublicDecode, 
             ret = self.__recv_int()
-            print("        ret = ", ret)
+            print("        PublicDec.ret = ", ret)
 
             # SSLVerify x2, if ok 99
             ret = self.__recv_int()
-            print("        ret = ", ret)
+            print("        SSLVerify.ret = ", ret)
 
             calculated_signature = self.__recv(64)
             print("   calculated signature (from received signature) = [", calculated_signature.hex(), "]" )

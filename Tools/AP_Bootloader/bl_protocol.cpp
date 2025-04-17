@@ -1341,11 +1341,12 @@ bootloader(unsigned timeout)
                                               calculated_hash, WC_SHA256_DIGEST_SIZE);
                 if (ret != 0) {
                     // revert in case the flash was bad...
-                    memset(first_words, 0xff, sizeof(first_words));
+                    memset(first_words, 0xf5, sizeof(first_words));
 
                     // Flash final words
                     if (!flash_write_buffer(0, first_words, RESERVE_LEAD_WORDS)) {
-                        goto cmd_fail;
+                        goto cmd_step4;
+                        // goto cmd_fail;
                     }
 
                     goto cmd_step5;
@@ -1700,9 +1701,9 @@ cmd_fail:
 // cmd_step3:
 //         other_response(3);
 //         continue;
-// cmd_step4:
-//         other_response(4);
-//         continue;
+cmd_step4:
+        other_response(4);
+        continue;
 cmd_step5:
         other_response(55);
         continue;
