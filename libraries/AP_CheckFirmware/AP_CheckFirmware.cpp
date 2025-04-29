@@ -361,7 +361,7 @@ uint32_t verify_checksums(void)
 
     output = verify_checksum_firmware();
 
-    output |= verify_checksum_parameters();
+    // output += verify_checksum_parameters();
 
     return output;
 }
@@ -369,8 +369,7 @@ uint32_t verify_checksums(void)
 uint32_t verify_checksum_firmware(bool in_debug)
 {
     // Get the firmware checksum  
-    uint32_t image_size = 0;
-    uint8_t *firmware_checksum = find_firmware(image_size);
+    uint8_t *firmware_checksum = find_firmware();
 
     if (in_debug) {
         uint32_t xx = uint32_t(firmware_checksum);
@@ -412,14 +411,21 @@ uint32_t verify_checksum_firmware(bool in_debug)
 
 uint32_t verify_checksum_parameters(bool in_debug)
 {
-    unsigned char *parameters_address = nullptr;
+    // unsigned char *parameters_address = nullptr;
 
-    uint32_t parameters_size = 0;
-    uint8_t *parameters_checksum = find_parameters(parameters_size, &parameters_address);
+    uint8_t *parameters_checksum = find_parameters();
+
+    uint32_t xx;
 
     if (in_debug) {
-        uint32_t xx = uint32_t(parameters_checksum);
+        xx = uint32_t(parameters_checksum);
         cout((uint8_t *)&xx, 4);
+
+        // xx = parameters_size;
+        // cout((uint8_t *)&xx, 4);
+
+        // xx = uint32_t(parameters_address);
+        // cout((uint8_t *)&xx, 4);
     }
 
     if (parameters_checksum == nullptr) {
@@ -433,6 +439,21 @@ uint32_t verify_checksum_parameters(bool in_debug)
 
     // Calculate checksum sha256 of the firmware   
     unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
+
+    uint32_t parameters_size{0};
+    const uint8_t *parameters_address = (const uint8_t *) 0x1987233;
+
+    if (in_debug) {
+        xx = parameters_size;
+        cout((uint8_t *)&xx, 4);
+
+        xx = uint32_t(parameters_address);
+        cout((uint8_t *)&xx, 4);
+    }
+
+    if (parameters_address == nullptr) {
+        return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_BAD_CHECKSUM));
+    }
 
     calculate_hash(parameters_address, parameters_size, calculated_hash);
 
@@ -506,7 +527,7 @@ int32_t calculate_hash(const bl_data_short &in_location, unsigned char *out_buff
     return 0;
 }
 
-uint8_t *find_firmware(uint32_t &out_image_size)
+uint8_t *find_firmware()
 {
     // Look for the Application Descriptor
 #if AP_SIGNED_FIRMWARE
@@ -577,7 +598,7 @@ uint32_t get_firmware_location(bl_data_short &out_firmware_data)
 
 // It returns the address of the are where the Persistent parameters start
 // and the size of the area
-uint8_t *find_parameters(uint32_t &out_image_size, unsigned char **out_parameters_address)
+uint8_t *find_parameters()
 {
     // Look for the Application Descriptor
     #if AP_SIGNED_FIRMWARE
@@ -599,6 +620,17 @@ uint8_t *find_parameters(uint32_t &out_image_size, unsigned char **out_parameter
     if (ad->image_size > flash_size) {
         return nullptr;
     }
+
+
+    // const uint8_t *boot_addr = (const uint8_t *) (FLASH_LOAD_ADDRESS);
+    // const uint32_t boot_size = (FLASH_BOOTLOADER_LOAD_KB)*1024;
+
+    // unsigned char *parameters_address = (unsigned char *)memmem((void*)boot_addr, boot_size,
+    //                                      persistent_header,
+    //                                      strlen(persistent_header));
+    // *out_parameters_address = parameters_address + strlen(persistent_header); 
+
+    // out_image_size = (reinterpret_cast<uint32_t>(boot_addr) + boot_size) - reinterpret_cast<uint32_t>(parameters_address);
 
     return const_cast<uint8_t *>(ad->defaults_checksum);
 }

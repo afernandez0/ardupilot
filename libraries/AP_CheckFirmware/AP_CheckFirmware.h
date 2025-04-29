@@ -60,9 +60,9 @@ int32_t calculate_hash(const unsigned char *in_buffer, uint32_t in_size, unsigne
 int32_t calculate_hash(const bl_data_short &in_location, unsigned char *out_buffer);
 
 
-uint8_t *find_firmware(uint32_t &out_image_size);
+uint8_t *find_firmware(); 
 uint32_t get_firmware_location(bl_data_short &out_firmware_data);
-uint8_t *find_parameters(uint32_t &out_image_size, unsigned char **out_parameters_address);
+uint8_t *find_parameters();
 
 #else 
 

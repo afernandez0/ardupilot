@@ -1218,7 +1218,13 @@ class uploader(object):
         print("")
 
         firmware_address = self.__recv_int()
-        print(f"   firmware_checksum = {firmware_address}, 0x{firmware_address:0x}")
+        print(f"   parameters_checksum = {firmware_address}, 0x{firmware_address:0x}")
+
+        parameters_size = self.__recv_int()
+        print(f"   parameters_size = {parameters_size}, 0x{parameters_size:0x}")
+
+        parameters_address = self.__recv_int()
+        print(f"   parameters_address = {parameters_address}, 0x{parameters_address:0x}")
 
         calculated_hash=self.__recv(32)
         print("   sha = [", calculated_hash.hex(), "]")

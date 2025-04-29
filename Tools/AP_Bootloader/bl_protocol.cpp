@@ -1553,8 +1553,7 @@ bootloader(unsigned timeout)
             }
 
             // Update checksum in the RomFS
-            uint32_t image_size = 0;
-            uint8_t *firmware_checksum = find_firmware(image_size);
+            uint8_t *firmware_checksum = find_firmware(); 
         
             if (firmware_checksum == nullptr) {
                 goto cmd_fail;
@@ -1643,10 +1642,10 @@ bootloader(unsigned timeout)
             }
 
             // Update checksum in the RomFS   
-            unsigned char *parameters_address = nullptr;
+            // unsigned char *parameters_address = nullptr;
 
-            uint32_t parameters_size = 0;
-            uint8_t *parameters_checksum = find_parameters(parameters_size, &parameters_address);
+            // uint32_t parameters_size = 0;
+            uint8_t *parameters_checksum = find_parameters(); //parameters_size, &parameters_address);
 
             if (parameters_checksum == nullptr) {
                 goto cmd_fail;

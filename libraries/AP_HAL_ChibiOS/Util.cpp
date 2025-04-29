@@ -278,6 +278,11 @@ uint64_t Util::get_hw_rtc() const
 #error "Bootloader-flashing enabled but no flashing support"
 #endif
 
+
+#if HAL_ENABLE_SAVE_PERSISTENT_PARAMS
+static const char *persistent_header = "{{AJFG_V1}}\n";
+#endif
+
 Util::FlashBootloader Util::flash_bootloader()
 {
     uint32_t fw_size;
@@ -328,6 +333,37 @@ Util::FlashBootloader Util::flash_bootloader()
         // bootloader to allow storage of the params
         uptodate = false;
     }
+
+    // ajfg
+    Debug("** Page size: %lu", hal.flash->getpagesize(0));
+    Debug("** Available space: %ld", space_available);
+   
+    // Look for the file
+    uint32_t param_size;
+
+    const uint8_t *params = AP_ROMFS::find_decompress("defaults.parm", param_size);
+    
+    persistent_params.printf("%s", persistent_header);
+    persistent_params.printf("DPS=%ld\n", param_size);   
+    persistent_params.append("DPA=", 4);
+    persistent_params.append(reinterpret_cast<const char *>(params), param_size);
+    persistent_params.append("\n", 1);
+    
+    AP_ROMFS::free(params);
+
+    Debug("** Persistent params size: %lu", persistent_params.get_length());
+    
+    // ensure that the length is a multiple of 32 to meet flash alignment requirements
+    while (!persistent_params.has_failed_allocation() && persistent_params.get_length() % 32 != 0) {
+        persistent_params.append(" ", 1);
+    }
+    
+    if (param_size > 8192 || param_size > space_available) {
+        Debug("WARNING: Parameters are too big. Avaliable space: %ld  Param size: %lu", space_available, param_size);
+        AP_ROMFS::free(fw);
+        return FlashBootloader::NO_CHANGE;
+    }
+
 #endif
 
     if (uptodate) {
@@ -371,10 +407,7 @@ Util::FlashBootloader Util::flash_bootloader()
         Debug("Flash OK\n");
 #if HAL_ENABLE_SAVE_PERSISTENT_PARAMS
         if (persistent_params.get_length()) {
-            const uint32_t ofs = hal.flash->getpagesize(0) - persistent_params.get_length();
-            Debug("Saving parameters: @%08x\n", ((unsigned int)(addr+ofs)));
-
-            hal.flash->write(addr+ofs, persistent_params.get_string(), persistent_params.get_length());
+            flash_parameters(persistent_params, fw_size);
         }
 #endif
         hal.flash->keep_unlocked(false);
@@ -385,8 +418,56 @@ Util::FlashBootloader Util::flash_bootloader()
     hal.flash->keep_unlocked(false);
     Debug("Flash failed after %u attempts\n", max_attempts);
     AP_ROMFS::free(fw);
+   
     return FlashBootloader::FAIL;
 }
+
+void Util::flash_parameters(const ExpandingString &in_parameters, const uint32_t in_fw_size)
+{
+    const uint32_t addr = hal.flash->getpageaddr(0);
+    const uint32_t ofs = hal.flash->getpagesize(0) - in_parameters.get_length();
+
+    uint32_t  bootloader_address = (addr+ofs);
+    //Debug("Saving parameters: @%08x  Len: %lu\n", ((unsigned int)(addr+ofs)), in_parameters.get_length());
+    Debug("Saving parameters: @%08x  Len: %lu\n", (static_cast<unsigned int>(bootloader_address)), in_parameters.get_length());
+
+#if defined(STM32H7)
+    // Align the address to 256 bits
+    while ((bootloader_address & 0x1F) && (bootloader_address > in_fw_size)) {
+        bootloader_address --;
+    }
+
+    Debug("Adjusted. Saving parameters: @%08x  Len: %lu\n", (static_cast<unsigned int>(bootloader_address)), in_parameters.get_length());
+#endif
+
+    //Debug("   [%s]\n", in_parameters.get_string());
+
+    // SAVE in chunks of 224 bytes or less
+    #define CHUNK_SIZE  224
+
+    uint32_t j = 0;
+    uint8_t chunk_size = CHUNK_SIZE;
+    const char *params_buffer = in_parameters.get_string();
+    bool chunk_flag = false;
+
+    while (j < in_parameters.get_length()) {
+
+        chunk_size = MIN( chunk_size, (in_parameters.get_length() - j) );
+
+        chunk_flag =  hal.flash->write(bootloader_address, (const void*) &params_buffer[j], chunk_size);
+        
+        if (!chunk_flag) {
+            Debug("Failed to write the Persistent Parameters. j: %ld chunk size: %d", j, chunk_size);
+            break;
+        }
+
+        // Next chunk
+        bootloader_address += chunk_size;
+
+        j += CHUNK_SIZE;
+    }
+}
+
 #endif // AP_BOOTLOADER_FLASHING_ENABLED
 
 /*
@@ -529,7 +610,8 @@ void Util::mem_info(ExpandingString &str)
 
 #if HAL_ENABLE_SAVE_PERSISTENT_PARAMS
 
-static const char *persistent_header = "{{PERSISTENT_START_V1}}\n";
+// Old
+// static const char *persistent_header = "{{PERSISTENT_START_V1}}\n";
 
 
 /*

@@ -4,7 +4,8 @@ BOARD_NAME=MatekH743
 
 # Compile the bootloader 
 # Add the keys to the binary 
-Tools/scripts/build_bootloaders.py ${BOARD_NAME} --signing-key=Tools/scripts/signing/ArduPilotKeys/key1_public_key.dat 
+Tools/scripts/build_bootloaders.py ${BOARD_NAME} --signing-key=Tools/scripts/signing/ArduPilotKeys/key2_public_key.dat 
+# Tools/scripts/build_bootloaders.py ${BOARD_NAME} --signing-key=bbb_public_key.dat 
 if [ $? -ne 0 ]; then
    echo "Bootloader"
    exit -1
@@ -35,7 +36,8 @@ if [ -f build/${BOARD_NAME}/processed_defaults.parm ]; then
 fi
 
 # Add XXXX argument = For zero checksums (firm, params) 
-Tools/scripts/signing/make_secure_fw.py build/${BOARD_NAME}/bin/arducopter.apj Tools/scripts/signing/private_keys/key1_private_key.dat   build/${BOARD_NAME}/processed_defaults_parm.chksum
+Tools/scripts/signing/make_secure_fw.py build/${BOARD_NAME}/bin/arducopter.apj Tools/scripts/signing/private_keys/key2_private_key.dat   build/${BOARD_NAME}/processed_defaults_parm.chksum
+# Tools/scripts/signing/make_secure_fw.py build/${BOARD_NAME}/bin/arducopter.apj bbb_private_key.dat   build/${BOARD_NAME}/processed_defaults_parm.chksum
 if [ $? -ne 0 ]; then
    echo "make secure fw"
    exit -1
@@ -43,3 +45,7 @@ fi
 
 # Command for uploading the new Firmware
 echo "Tools/scripts/uploader.py --port /dev/ttyACM0 build/${BOARD_NAME}/bin/arducopter.apj build/${BOARD_NAME}/bin/arducopter_apj.sign  build/${BOARD_NAME}/bin/arducopter_apj.chksum   params_checksum.bin"
+
+echo "OR"
+
+echo "Tools/scripts/uploader.py --port /dev/ttyACM0 build/${BOARD_NAME}/bin/arducopter.apj build/${BOARD_NAME}/bin/arducopter_apj.sign  build/${BOARD_NAME}/bin/arducopter_apj.chksum   build/${BOARD_NAME}/processed_defaults_parm.chksum"

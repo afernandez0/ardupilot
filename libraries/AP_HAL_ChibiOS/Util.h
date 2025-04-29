@@ -147,6 +147,9 @@ private:
 #if HAL_ENABLE_SAVE_PERSISTENT_PARAMS
     // save/load key persistent parameters in bootloader sector
     bool get_persistent_params(ExpandingString &str) const;
+
+    // Flash the persistent parameters in the bootloader
+    void flash_parameters(const ExpandingString &in_parameters, const uint32_t in_fw_size);
 #endif
 
     // log info on stack usage
