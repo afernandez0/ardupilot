@@ -343,8 +343,7 @@ Util::FlashBootloader Util::flash_bootloader()
 
     const uint8_t *params = AP_ROMFS::find_decompress("defaults.parm", param_size);
     
-    persistent_params.printf("%s", persistent_header);
-    persistent_params.printf("DPS=%ld\n", param_size);   
+    persistent_params.printf("DPS=%lu\n", param_size);   
     persistent_params.append("DPA=", 4);
     persistent_params.append(reinterpret_cast<const char *>(params), param_size);
     persistent_params.append("\n", 1);
@@ -391,7 +390,7 @@ Util::FlashBootloader Util::flash_bootloader()
         erase_page++;
     }
 
-    Debug("Flashing %s @%08x\n", fw_name, (unsigned int)addr);
+    Debug("Flashing %s @0x%08x\n", fw_name, (unsigned int)addr);
     const uint8_t max_attempts = 10;
     hal.flash->keep_unlocked(true);
     for (uint8_t i=0; i<max_attempts; i++) {
@@ -428,8 +427,7 @@ void Util::flash_parameters(const ExpandingString &in_parameters, const uint32_t
     const uint32_t ofs = hal.flash->getpagesize(0) - in_parameters.get_length();
 
     uint32_t  bootloader_address = (addr+ofs);
-    //Debug("Saving parameters: @%08x  Len: %lu\n", ((unsigned int)(addr+ofs)), in_parameters.get_length());
-    Debug("Saving parameters: @%08x  Len: %lu\n", (static_cast<unsigned int>(bootloader_address)), in_parameters.get_length());
+    Debug("Saving parameters: @0x%08x  Len: %lu\n", (static_cast<unsigned int>(bootloader_address)), in_parameters.get_length());
 
 #if defined(STM32H7)
     // Align the address to 256 bits
@@ -437,7 +435,7 @@ void Util::flash_parameters(const ExpandingString &in_parameters, const uint32_t
         bootloader_address --;
     }
 
-    Debug("Adjusted. Saving parameters: @%08x  Len: %lu\n", (static_cast<unsigned int>(bootloader_address)), in_parameters.get_length());
+    Debug("Adjusted. Saving parameters: @0x%08x  Len: %lu\n", (static_cast<unsigned int>(bootloader_address)), in_parameters.get_length());
 #endif
 
     //Debug("   [%s]\n", in_parameters.get_string());
@@ -457,7 +455,7 @@ void Util::flash_parameters(const ExpandingString &in_parameters, const uint32_t
         chunk_flag =  hal.flash->write(bootloader_address, (const void*) &params_buffer[j], chunk_size);
         
         if (!chunk_flag) {
-            Debug("Failed to write the Persistent Parameters. j: %ld chunk size: %d", j, chunk_size);
+            Debug("Failed to write the Persistent Parameters. j: %lu chunk size: %d", j, chunk_size);
             break;
         }
 

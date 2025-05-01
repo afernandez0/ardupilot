@@ -1641,11 +1641,7 @@ bootloader(unsigned timeout)
                 goto cmd_bad;
             }
 
-            // Update checksum in the RomFS   
-            // unsigned char *parameters_address = nullptr;
-
-            // uint32_t parameters_size = 0;
-            uint8_t *parameters_checksum = find_parameters(); //parameters_size, &parameters_address);
+            uint8_t *parameters_checksum = find_parameters_checksum(); //parameters_size, &parameters_address);
 
             if (parameters_checksum == nullptr) {
                 goto cmd_fail;

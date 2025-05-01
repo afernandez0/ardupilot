@@ -11,6 +11,10 @@
 
 #if defined(HAL_BOOTLOADER_BUILD)
 
+
+// Duplicated. For the sake of compiling the bootloader
+static const char *persistent_header = "{{AJFG_V1}}\n";
+
 #if AP_SIGNED_FIRMWARE
 #include "../../Tools/AP_Bootloader/support.h"
 #include <string.h>
@@ -411,21 +415,14 @@ uint32_t verify_checksum_firmware(bool in_debug)
 
 uint32_t verify_checksum_parameters(bool in_debug)
 {
-    // unsigned char *parameters_address = nullptr;
-
-    uint8_t *parameters_checksum = find_parameters();
-
+    // Search for the address of the parameters checksum
+    uint8_t *parameters_checksum = find_parameters_checksum();
+    
     uint32_t xx;
-
+    
     if (in_debug) {
         xx = uint32_t(parameters_checksum);
         cout((uint8_t *)&xx, 4);
-
-        // xx = parameters_size;
-        // cout((uint8_t *)&xx, 4);
-
-        // xx = uint32_t(parameters_address);
-        // cout((uint8_t *)&xx, 4);
     }
 
     if (parameters_checksum == nullptr) {
@@ -436,12 +433,12 @@ uint32_t verify_checksum_parameters(bool in_debug)
     if (memcmp(parameters_checksum, some_buffer, WC_SHA256_DIGEST_SIZE) == 0) {
         return static_cast<uint32_t>(check_fw_result_t::CHECK_FW_OK);
     }
+    
+    // Find the parameters address, usually at the end of the bootloader
+    unsigned char *parameters_address = nullptr;
+    uint32_t parameters_size = 0;
 
-    // Calculate checksum sha256 of the firmware   
-    unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
-
-    uint32_t parameters_size{0};
-    const uint8_t *parameters_address = (const uint8_t *) 0x1987233;
+    parameters_address = find_parameters(parameters_size);
 
     if (in_debug) {
         xx = parameters_size;
@@ -452,8 +449,12 @@ uint32_t verify_checksum_parameters(bool in_debug)
     }
 
     if (parameters_address == nullptr) {
-        return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_BAD_CHECKSUM));
+        // There are no parameters. So no checksum to be verified
+        return (static_cast<uint32_t>(check_fw_result_t::CHECK_FW_OK));
     }
+
+    // Calculate checksum sha256 of the firmware   
+    unsigned char calculated_hash[WC_SHA256_DIGEST_SIZE];
 
     calculate_hash(parameters_address, parameters_size, calculated_hash);
 
@@ -598,7 +599,7 @@ uint32_t get_firmware_location(bl_data_short &out_firmware_data)
 
 // It returns the address of the are where the Persistent parameters start
 // and the size of the area
-uint8_t *find_parameters()
+uint8_t *find_parameters_checksum()
 {
     // Look for the Application Descriptor
     #if AP_SIGNED_FIRMWARE
@@ -621,18 +622,78 @@ uint8_t *find_parameters()
         return nullptr;
     }
 
-
-    // const uint8_t *boot_addr = (const uint8_t *) (FLASH_LOAD_ADDRESS);
-    // const uint32_t boot_size = (FLASH_BOOTLOADER_LOAD_KB)*1024;
-
-    // unsigned char *parameters_address = (unsigned char *)memmem((void*)boot_addr, boot_size,
-    //                                      persistent_header,
-    //                                      strlen(persistent_header));
-    // *out_parameters_address = parameters_address + strlen(persistent_header); 
-
-    // out_image_size = (reinterpret_cast<uint32_t>(boot_addr) + boot_size) - reinterpret_cast<uint32_t>(parameters_address);
-
     return const_cast<uint8_t *>(ad->defaults_checksum);
+}
+
+uint8_t *find_parameters(uint32_t &out_params_size)
+{
+    const uint8_t *boot_addr = (const uint8_t *) (FLASH_LOAD_ADDRESS);
+    const uint32_t boot_size = (FLASH_BOOTLOADER_LOAD_KB)*1024;
+
+    out_params_size = 0;
+
+    // Find the header. It starts after the firmware ends
+    uint8_t *header_address = (uint8_t *) memmem((void*) (boot_addr), boot_size,
+                                              persistent_header,
+                                              strlen(persistent_header));
+
+    if (header_address == nullptr) {
+        // DEbug
+        out_params_size = 1;
+        return nullptr;
+    }
+
+    // Search twice
+    header_address += strlen(persistent_header);
+    header_address = (uint8_t *) memmem((void*) header_address, boot_size,
+                                        persistent_header,
+                                        strlen(persistent_header));
+
+    if (header_address == nullptr) {
+        // DEbug
+        out_params_size = 1;
+        return nullptr;
+    }
+
+    // Find the size
+    uint8_t *tmp_address = (uint8_t *) memmem((void*)header_address, boot_size,
+                                              "DPS=", 4);
+
+    if (tmp_address == nullptr) {
+        // DEbug
+        out_params_size = (uint32_t) (header_address);
+        return nullptr;
+    }
+                                                                                    
+    tmp_address += 4;
+
+    // Max value; 999,999
+    uint8_t buffer_params_size[7] = {};
+    size_t i = 0;
+
+    while ((*tmp_address != '\n') && (i < 6)) {
+        buffer_params_size[i] = *tmp_address;
+        tmp_address ++;
+        i ++;
+    }
+    buffer_params_size[i] = 0;
+
+    out_params_size = atoi( reinterpret_cast<const char *>(buffer_params_size));
+
+    // Find the parameters
+    tmp_address = (uint8_t *) memmem((void*)header_address, boot_size,
+                                     "DPA=", 4);
+
+    if (tmp_address == nullptr) {
+        // out_params_size = 0;
+        // DEbug
+        out_params_size = 3;
+        return nullptr;
+    }
+                                                                                    
+    tmp_address += 4;
+
+    return tmp_address;
 }
 
 #endif // HAL_BOOTLOADER_BUILD

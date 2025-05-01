@@ -62,7 +62,8 @@ int32_t calculate_hash(const bl_data_short &in_location, unsigned char *out_buff
 
 uint8_t *find_firmware(); 
 uint32_t get_firmware_location(bl_data_short &out_firmware_data);
-uint8_t *find_parameters();
+uint8_t *find_parameters_checksum();
+uint8_t *find_parameters(uint32_t &out_params_size);
 
 #else 
 
