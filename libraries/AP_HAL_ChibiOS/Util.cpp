@@ -324,6 +324,7 @@ Util::FlashBootloader Util::flash_bootloader()
     // the end of the sector
     const int32_t space_available = hal.flash->getpagesize(0) - int32_t(fw_size);
     ExpandingString persistent_params {}, old_persistent_params {};
+
     if (get_persistent_params(persistent_params) &&
         space_available >= persistent_params.get_length() &&
         (!load_persistent_params(old_persistent_params) ||
@@ -337,30 +338,47 @@ Util::FlashBootloader Util::flash_bootloader()
     // ajfg
     Debug("** Page size: %lu", hal.flash->getpagesize(0));
     Debug("** Available space: %ld", space_available);
-   
+    
     // Look for the file
-    uint32_t param_size;
-
+    uint32_t param_size = 0;
+    
     const uint8_t *params = AP_ROMFS::find_decompress("defaults.parm", param_size);
     
-    persistent_params.printf("DPS=%lu\n", param_size);   
-    persistent_params.append("DPA=", 4);
-    persistent_params.append(reinterpret_cast<const char *>(params), param_size);
-    persistent_params.append("\n", 1);
-    
-    AP_ROMFS::free(params);
+    if (params != nullptr) {
+        persistent_params.printf("DPS=%lu\n", param_size);   
+        persistent_params.append("DPA=", 4);
+        persistent_params.append(reinterpret_cast<const char *>(params), param_size);
+        persistent_params.append("\n", 1);
+        
+        AP_ROMFS::free(params);
+        
+        Debug("** Parameters size: %ld", param_size);
+        Debug("** Persistent params size: %lu", persistent_params.get_length());
+        
+        // ensure that the length is a multiple of 32 to meet flash alignment requirements
+        while (!persistent_params.has_failed_allocation() && persistent_params.get_length() % 32 != 0) {
+            persistent_params.append(" ", 1);
+        }
+        
+        if (param_size > 8192 || param_size > space_available) {
+            Debug("ERROR: Parameters are too big. Avaliable space: %ld  Param size: %lu", space_available, param_size);
+            AP_ROMFS::free(fw);
+            return FlashBootloader::NO_CHANGE;
+        }
 
-    Debug("** Persistent params size: %lu", persistent_params.get_length());
-    
-    // ensure that the length is a multiple of 32 to meet flash alignment requirements
-    while (!persistent_params.has_failed_allocation() && persistent_params.get_length() % 32 != 0) {
-        persistent_params.append(" ", 1);
-    }
-    
-    if (param_size > 8192 || param_size > space_available) {
-        Debug("WARNING: Parameters are too big. Avaliable space: %ld  Param size: %lu", space_available, param_size);
-        AP_ROMFS::free(fw);
-        return FlashBootloader::NO_CHANGE;
+        if (load_persistent_params(old_persistent_params)) {
+            Debug("** Load Old params");
+
+            if (strcmp(persistent_params.get_string(),
+                       old_persistent_params.get_string()) != 0) {
+                uptodate = false;
+                Debug("** Update Default paraemters");
+            } else {
+                Debug("** No change(s). Nothing to be updated");
+            }
+        }
+    } else {
+        Debug("** No Default Parameters found");
     }
 
 #endif
@@ -651,6 +669,13 @@ bool Util::load_persistent_params(ExpandingString &str) const
     const char *s = (const char *)memmem((void*)addr, size,
                                          persistent_header,
                                          strlen(persistent_header));
+
+    // Search twice
+    s += strlen(persistent_header);
+    s = (const char *)memmem((void*)s, size,
+                             persistent_header,
+                             strlen(persistent_header));
+
     if (s) {
         str.append(s, (addr+size) - uint32_t(s));
         return !str.has_failed_allocation();

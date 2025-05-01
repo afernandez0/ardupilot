@@ -407,16 +407,16 @@ failure_response(void)
 
 
 // Test
-static void
-other_response(uint8_t value)
-{
-    uint8_t data[] = {
-        PROTO_INSYNC,
-        value
-    };
+// static void
+// other_response(uint8_t value)
+// {
+//     uint8_t data[] = {
+//         PROTO_INSYNC,
+//         value
+//     };
 
-    cout(data, sizeof(data));
-}
+//     cout(data, sizeof(data));
+// }
 
 /**
  * Function to wait for EOC
@@ -1345,12 +1345,10 @@ bootloader(unsigned timeout)
 
                     // Flash final words
                     if (!flash_write_buffer(0, first_words, RESERVE_LEAD_WORDS)) {
-                        goto cmd_step4;
-                        // goto cmd_fail;
+                        goto cmd_fail;
                     }
 
-                    goto cmd_step5;
-                    // goto cmd_fail;
+                    goto cmd_fail;
                 }
             }            
         }
@@ -1696,11 +1694,11 @@ cmd_fail:
 // cmd_step3:
 //         other_response(3);
 //         continue;
-cmd_step4:
-        other_response(4);
-        continue;
-cmd_step5:
-        other_response(55);
-        continue;
+// cmd_step4:
+//         other_response(4);
+//         continue;
+// cmd_step5:
+//         other_response(55);
+//         continue;
     }
 }

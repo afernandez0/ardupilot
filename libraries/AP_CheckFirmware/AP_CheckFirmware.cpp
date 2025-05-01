@@ -88,7 +88,6 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
             xx = ret;
             cout((uint8_t *)&xx, 4);
         }
-    
         
         // Read the next public key
         idx = 0;
@@ -109,6 +108,7 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
             cout((uint8_t *)&xx, 4);
             cout((uint8_t *)&decSig, (WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ));
         }
+
         // It returns the length of the message or error
         if (ret >= 0) {
             if (ret != encSigLen) {
@@ -365,7 +365,9 @@ uint32_t verify_checksums(void)
 
     output = verify_checksum_firmware();
 
-    // output += verify_checksum_parameters();
+    if (output == 0) {
+        output = verify_checksum_parameters();
+    }
 
     return output;
 }
@@ -418,7 +420,7 @@ uint32_t verify_checksum_parameters(bool in_debug)
     // Search for the address of the parameters checksum
     uint8_t *parameters_checksum = find_parameters_checksum();
     
-    uint32_t xx;
+    uint32_t xx = 0;
     
     if (in_debug) {
         xx = uint32_t(parameters_checksum);
@@ -638,8 +640,6 @@ uint8_t *find_parameters(uint32_t &out_params_size)
                                               strlen(persistent_header));
 
     if (header_address == nullptr) {
-        // DEbug
-        out_params_size = 1;
         return nullptr;
     }
 
@@ -650,8 +650,6 @@ uint8_t *find_parameters(uint32_t &out_params_size)
                                         strlen(persistent_header));
 
     if (header_address == nullptr) {
-        // DEbug
-        out_params_size = 1;
         return nullptr;
     }
 
@@ -660,8 +658,6 @@ uint8_t *find_parameters(uint32_t &out_params_size)
                                               "DPS=", 4);
 
     if (tmp_address == nullptr) {
-        // DEbug
-        out_params_size = (uint32_t) (header_address);
         return nullptr;
     }
                                                                                     
@@ -685,9 +681,7 @@ uint8_t *find_parameters(uint32_t &out_params_size)
                                      "DPA=", 4);
 
     if (tmp_address == nullptr) {
-        // out_params_size = 0;
-        // DEbug
-        out_params_size = 3;
+        out_params_size = 0;
         return nullptr;
     }
                                                                                     
