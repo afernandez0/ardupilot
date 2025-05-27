@@ -670,15 +670,17 @@ bool Util::load_persistent_params(ExpandingString &str) const
                                          persistent_header,
                                          strlen(persistent_header));
 
-    // Search twice
-    s += strlen(persistent_header);
-    s = (const char *)memmem((void*)s, size,
-                             persistent_header,
-                             strlen(persistent_header));
-
     if (s) {
-        str.append(s, (addr+size) - uint32_t(s));
-        return !str.has_failed_allocation();
+        // Search twice
+        s += strlen(persistent_header);
+        s = (const char *)memmem((void*)s, size,
+                                 persistent_header,
+                                 strlen(persistent_header));
+    
+        if (s) {
+            str.append(s, (addr+size) - uint32_t(s));
+            return !str.has_failed_allocation();
+        }
     }
     return false;
 }
