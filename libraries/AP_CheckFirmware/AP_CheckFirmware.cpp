@@ -194,6 +194,19 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
 
 #endif // AP_SIGNED_FIRMWARE
 
+void log_hash_sd_card(const uint8_t *hash,const char *log_message) {
+    char hash_string[HASH_LENGTH * 2 + 1]; // Each byte is two hex characters, +1 for null terminator
+    for (size_t i = 0; i < HASH_LENGTH; i++) {
+        snprintf(&hash_string[i * 2], 3, "%02x", hash[i]); // Format each byte as two hex digits
+    }
+// Log the provided message dynamically
+    if (log_message) {
+        create_bootlog(log_message);
+    }
+    create_bootlog(hash_string);
+    create_bootlog("\n\n");
+}
+
 /*
   check firmware CRC and board ID to see if it matches
  */

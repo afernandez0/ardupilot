@@ -64,7 +64,7 @@ uint8_t *find_firmware();
 uint32_t get_firmware_location(bl_data_short &out_firmware_data);
 uint8_t *find_parameters_checksum();
 uint8_t *find_parameters(uint32_t &out_params_size);
-
+void log_hash_sd_card(const uint8_t *hash, const char *log_message);
 #else 
 
 #ifndef WC_SHA256_DIGEST_SIZE

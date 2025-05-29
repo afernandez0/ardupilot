@@ -382,4 +382,46 @@ out:
     return ret;
 }
 
+/**
+ * Create a log file `bootlog.txt` on the SD card.
+ * 
+ * @param[in] message The log message to write.
+ * @return true if successful, false otherwise.
+ */
+bool create_bootlog(const char *message) {
+    FIL file;          // File object
+    FRESULT res;       // Result from FatFS operations
+    UINT bytes_written;
+    // Initialize the SD card
+    if (!sdcard_init()) {
+        return false; // Initialization failed
+    }
+    // Path to the log file
+    const char *log_file_path = "/bootlog.txt";
+    // Open or create the file
+    res = f_open(&file, log_file_path, FA_WRITE | FA_OPEN_APPEND);
+    if (res != FR_OK) {
+        // Try to create the file if it doesn't exist
+        res = f_open(&file, log_file_path, FA_WRITE | FA_CREATE_NEW);
+        if (res != FR_OK) {
+            // File creation failed
+            sdcard_stop(); // Stop SD card before returning
+            return false;
+        }
+    }
+    // Write the message to the file
+    res = f_write(&file, message, strlen(message), &bytes_written);
+    if (res != FR_OK || bytes_written != strlen(message)) {
+        // Writing failed
+        f_close(&file);
+        sdcard_stop(); // Stop SD card before returning
+        return false;
+    }
+    // Close the file
+    f_close(&file);
+    // Stop the SD card
+    sdcard_stop();
+    return true;
+}
+
 #endif  // AP_BOOTLOADER_FLASH_FROM_SD_ENABLED
