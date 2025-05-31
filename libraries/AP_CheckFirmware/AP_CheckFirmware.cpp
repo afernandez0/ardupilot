@@ -8,9 +8,13 @@
 
 #if AP_CHECK_FIRMWARE_ENABLED
 
-
 #if defined(HAL_BOOTLOADER_BUILD)
 
+// trick 
+//#define  AP_BOOTLOADER_FLASH_FROM_SD_ENABLED  1
+
+//#include <AP_HAL_ChibiOS/Util.h>
+#include <../../Tools/AP_Bootloader/flash_from_sd.h>
 
 // Duplicated. For the sake of compiling the bootloader
 static const char *persistent_header = "{{AJFG_V1}}\n";
@@ -65,6 +69,15 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
 
     int ret = 0;
 
+    // Logging
+    // This is not very elegant but ...
+    const char *tmp_message = NULL;
+    
+    tmp_message = "Bootloader signature\n";
+    log_bytes_message_in_bootlog(in_signature, in_signature_length, tmp_message, strlen(tmp_message));
+    tmp_message = "Calculated hash\n";
+    log_bytes_message_in_bootlog(in_digest, in_digest_length, tmp_message, strlen(tmp_message));
+
     // Encode digest with algorithm information as per PKCS#1.5 
     // Same algorithm as make_secure_fw.py
     encSigLen = wc_EncodeSignature(encSig, in_digest, in_digest_length, SHA256h);
@@ -74,6 +87,9 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
         cout((uint8_t *)&xx, 4);
         cout((uint8_t *)&encSig, (WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ));
     }
+
+    tmp_message = "Calculated signature\n";
+    log_bytes_message_in_bootlog(encSig, encSigLen, tmp_message, strlen(tmp_message));
 
     for (const auto &public_key : public_keys.public_key) {
 
@@ -194,18 +210,6 @@ static check_fw_result_t check_firmware_signature(const app_descriptor_signed *a
 
 #endif // AP_SIGNED_FIRMWARE
 
-void log_hash_sd_card(const uint8_t *hash,const char *log_message) {
-    char hash_string[HASH_LENGTH * 2 + 1]; // Each byte is two hex characters, +1 for null terminator
-    for (size_t i = 0; i < HASH_LENGTH; i++) {
-        snprintf(&hash_string[i * 2], 3, "%02x", hash[i]); // Format each byte as two hex digits
-    }
-// Log the provided message dynamically
-    if (log_message) {
-        create_bootlog(log_message);
-    }
-    create_bootlog(hash_string);
-    create_bootlog("\n\n");
-}
 
 /*
   check firmware CRC and board ID to see if it matches

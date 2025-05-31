@@ -1,13 +1,15 @@
 #include "flash_from_sd.h"
 
-#if AP_BOOTLOADER_FLASH_FROM_SD_ENABLED
-
+// Access to SD
 #include "ch.h"
 #include "ff.h"
 
+#include <string.h>
+
+#if AP_BOOTLOADER_FLASH_FROM_SD_ENABLED
+
 #include "md5.h"
 
-#include <string.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -39,6 +41,8 @@ int16_t char_to_hex(char a)
     else
         return a - '0';
 }
+
+
 
 #define MAX_IO_SIZE 4096
 static uint8_t buffer[MAX_IO_SIZE];
@@ -382,22 +386,35 @@ out:
     return ret;
 }
 
+#endif  // AP_BOOTLOADER_FLASH_FROM_SD_ENABLED
+
+
 /**
  * Create a log file `bootlog.txt` on the SD card.
  * 
  * @param[in] message The log message to write.
  * @return true if successful, false otherwise.
  */
-bool create_bootlog(const char *message) {
+bool log_message_in_bootlog(const char *message, const uint16_t message_len) {
     FIL file;          // File object
     FRESULT res;       // Result from FatFS operations
     UINT bytes_written;
+
+    uint16_t tmp_message_len = 0;
+    if (message_len > strlen(message)) {
+        tmp_message_len = strlen(message);
+    } else {
+        tmp_message_len = message_len;
+    }
+
     // Initialize the SD card
     if (!sdcard_init()) {
         return false; // Initialization failed
     }
+    
     // Path to the log file
     const char *log_file_path = "/bootlog.txt";
+    
     // Open or create the file
     res = f_open(&file, log_file_path, FA_WRITE | FA_OPEN_APPEND);
     if (res != FR_OK) {
@@ -409,19 +426,60 @@ bool create_bootlog(const char *message) {
             return false;
         }
     }
+    
     // Write the message to the file
-    res = f_write(&file, message, strlen(message), &bytes_written);
+    res = f_write(&file, message, tmp_message_len, &bytes_written);
     if (res != FR_OK || bytes_written != strlen(message)) {
         // Writing failed
         f_close(&file);
         sdcard_stop(); // Stop SD card before returning
         return false;
     }
+    
     // Close the file
     f_close(&file);
+    
     // Stop the SD card
     sdcard_stop();
+    
     return true;
 }
 
-#endif  // AP_BOOTLOADER_FLASH_FROM_SD_ENABLED
+// The output string must have enough space for storing the output string
+// At least input_len * 2 + 1
+void convert_hex_to_string(const uint8_t *input_hex, const uint16_t input_len, char *output_string) 
+{   
+    static const char * hexmap = "0123456789ABCDEF";
+           
+    char *pout = output_string;
+    unsigned char *pin = const_cast<unsigned char *>(input_hex);
+    size_t i = 0;
+
+    for (; i < input_len - 1; i+= 2) {
+        //tmp_util.snprintf(&hash_string[i * 2], 3, "%02x", hash[i]); // Format each byte as two hex digits
+        *pout++ = hexmap[(*pin >> 4) & 0xF];
+        *pout++ = hexmap[(*pin++) & 0xF];
+        *pout++ = ' ';
+    }
+
+    // Convert last char
+    *pout++ = hexmap[(*pin >> 4) & 0xF];
+    *pout++ = hexmap[(*pin++) & 0xF];
+    *pout = 0;
+
+}
+
+void log_bytes_message_in_bootlog(const uint8_t *input_hex, const uint16_t input_len,
+    const char *message, const uint16_t message_len)
+{
+    uint32_t string_len = (input_len * 2 + 1);
+
+    assert(string_len < 2048);
+
+    char converted_string[string_len];
+
+    convert_hex_to_string(input_hex, input_len, converted_string);
+    log_message_in_bootlog(converted_string, string_len);
+
+    log_message_in_bootlog(message, message_len);
+}
