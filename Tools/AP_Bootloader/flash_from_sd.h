@@ -16,5 +16,5 @@ bool log_message_in_bootlog(const char *message, const uint16_t message_len);
 
 void log_bytes_in_bootlog(const uint8_t *input_hex, const uint16_t input_len);
 
-void convert_hex_to_string(const uint8_t *input_hex, const uint16_t input_len, char *output_string);
+void convert_hex_to_string(const uint8_t *input_hex, const uint16_t input_len, char *output_string, bool add_spaces_flag = true);
 

@@ -449,7 +449,7 @@ bool log_message_in_bootlog(const char *message, const uint16_t message_len)
 
     char time_buffer[32] = {};
     
-    convert_hex_to_string(reinterpret_cast<uint8_t *>(&t0), sizeof(t0), time_buffer);
+    convert_hex_to_string(reinterpret_cast<uint8_t *>(&t0), sizeof(t0), time_buffer, false);
 
     res = f_write(&file, time_buffer, sizeof(time_buffer), &bytes_written);
     if (res != FR_OK || bytes_written != sizeof(time_buffer)) {
@@ -497,7 +497,8 @@ bool log_message_in_bootlog(const char *message, const uint16_t message_len)
 
 // The output string must have enough space for storing the output string
 // At least input_len * 2 + 1
-void convert_hex_to_string(const uint8_t *input_hex, const uint16_t input_len, char *output_string) 
+void convert_hex_to_string(const uint8_t *input_hex, const uint16_t input_len, char *output_string, 
+    bool add_spaces_flag) 
 {   
     static const char * hexmap = "0123456789ABCDEF";
            
@@ -508,7 +509,8 @@ void convert_hex_to_string(const uint8_t *input_hex, const uint16_t input_len, c
     for (; i < input_len - 1; i+= 2) {
         *pout++ = hexmap[(*pin >> 4) & 0xF];
         *pout++ = hexmap[(*pin++) & 0xF];
-        *pout++ = ' ';
+        if (add_spaces_flag)
+            *pout++ = ' ';
     }
 
     // Convert last char

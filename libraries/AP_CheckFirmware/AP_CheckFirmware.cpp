@@ -135,6 +135,9 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
                 break;
             }
 
+            log_message_in_bootlog("Decoded signature");
+            log_bytes_in_bootlog(decSig, decSigLen);
+
             // Compare both signatures
             if (XMEMCMP(encSig, decSig, encSigLen) == 0) {
                 if (in_debug) {
