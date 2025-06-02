@@ -71,12 +71,14 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
 
     // Logging
     // This is not very elegant but ...
-    const char *tmp_message = NULL;
+    // const char *tmp_message = NULL;
     
-    tmp_message = "Bootloader signature\n";
-    log_bytes_message_in_bootlog(in_signature, in_signature_length, tmp_message, strlen(tmp_message));
-    tmp_message = "Calculated hash\n";
-    log_bytes_message_in_bootlog(in_digest, in_digest_length, tmp_message, strlen(tmp_message));
+    // tmp_message = "Bootloader signature";
+    log_message_in_bootlog("Bootloader signature");
+    log_bytes_in_bootlog(in_signature, in_signature_length);
+    // tmp_message = "Calculated hash";
+    log_message_in_bootlog("Calculated hash");
+    log_bytes_in_bootlog(in_digest, in_digest_length);
 
     // Encode digest with algorithm information as per PKCS#1.5 
     // Same algorithm as make_secure_fw.py
@@ -88,8 +90,9 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
         cout((uint8_t *)&encSig, (WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ));
     }
 
-    tmp_message = "Calculated signature\n";
-    log_bytes_message_in_bootlog(encSig, encSigLen, tmp_message, strlen(tmp_message));
+    // tmp_message = "Calculated signature";
+    log_message_in_bootlog("Calculated signature");
+    log_bytes_in_bootlog(encSig, encSigLen);
 
     for (const auto &public_key : public_keys.public_key) {
 
