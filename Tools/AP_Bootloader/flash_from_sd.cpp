@@ -412,17 +412,10 @@ bool log_message_in_bootlog(const char *message, const uint16_t message_len)
 {
     FIL file;          // File object
     FRESULT res;       // Result from FatFS operations
-    UINT bytes_written;
 
-    uint16_t tmp_message_len = 0;
-    if (message_len > strlen(message)) {
-        tmp_message_len = strlen(message);
-    } else {
-        tmp_message_len = message_len;
-    }
-
-    // Limitation; < 64KB
-    assert(tmp_message_len < 64*1024);
+    // Limitation; < 2 KB
+    assert(message_len <= strlen(message));
+    assert(strlen(message) < 2048);
 
     // Initialize the SD card
     if (!sdcard_init()) {
@@ -444,49 +437,17 @@ bool log_message_in_bootlog(const char *message, const uint16_t message_len)
         }
     }
 
-    // Write time
+    // Write message. Format:   milliseconds - message
     uint32_t t0 = AP_HAL::millis();
-
-    char time_buffer[32] = {};
     
-    //convert_hex_to_string(reinterpret_cast<uint8_t *>(&t0), sizeof(t0), time_buffer, false);
-    itoa(t0, time_buffer, 10);
-
-    res = f_write(&file, time_buffer, strlen(time_buffer), &bytes_written);
-    if (res != FR_OK || bytes_written != strlen(time_buffer)) {
+    int tmp_res = f_printf(&file, "%06d - %s\n", t0, message);
+    if (tmp_res != 0) {
         // Writing failed
         f_close(&file);
         sdcard_stop(); // Stop SD card before returning
         return false;
     }
-
-    // Write Separator
-    res = f_write(&file, " ", 1, &bytes_written);
-    if (res != FR_OK || bytes_written != 1) {
-        // Writing failed
-        f_close(&file);
-        sdcard_stop(); // Stop SD card before returning
-        return false;
-    }
-
-    // Write the message to the file
-    res = f_write(&file, message, tmp_message_len, &bytes_written);
-    if (res != FR_OK || bytes_written != tmp_message_len) {
-        // Writing failed
-        f_close(&file);
-        sdcard_stop(); // Stop SD card before returning
-        return false;
-    }
-
-    // Write the message to the file
-    res = f_write(&file, "\n", strlen("\n"), &bytes_written);
-    if (res != FR_OK || bytes_written != strlen("\n")) {
-        // Writing failed
-        f_close(&file);
-        sdcard_stop(); // Stop SD card before returning
-        return false;
-    }
-    
+        
     // Close the file
     f_close(&file);
     
@@ -505,9 +466,8 @@ void convert_hex_to_string(const uint8_t *input_hex, const uint16_t input_len, c
            
     char *pout = output_string;
     unsigned char *pin = const_cast<unsigned char *>(input_hex);
-    size_t i = 0;
 
-    for (; i < input_len - 1; i+= 2) {
+    for (size_t i = 0; i < input_len - 1; i++) {
         *pout++ = hexmap[(*pin >> 4) & 0xF];
         *pout++ = hexmap[(*pin++) & 0xF];
         if (add_spaces_flag)
@@ -523,14 +483,12 @@ void convert_hex_to_string(const uint8_t *input_hex, const uint16_t input_len, c
 
 void log_bytes_in_bootlog(const uint8_t *input_hex, const uint16_t input_len)
 {
-    uint32_t string_len = (input_len * 3 + 1);
+    // Limitation; 1 KB
+    assert((input_len*3) < 1024);
 
-    // Limitation; 4 KB
-    assert(string_len < 4096);
-
-    char converted_string[string_len];
+    char converted_string[1024];
 
     convert_hex_to_string(input_hex, input_len, converted_string);
 
-    log_message_in_bootlog(converted_string, string_len);
+    log_message_in_bootlog(converted_string);
 }

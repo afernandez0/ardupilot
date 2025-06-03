@@ -69,17 +69,6 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
 
     int ret = 0;
 
-    // Logging
-    // This is not very elegant but ...
-    // const char *tmp_message = NULL;
-    
-    // tmp_message = "Bootloader signature";
-    log_message_in_bootlog("Bootloader signature");
-    log_bytes_in_bootlog(in_signature, in_signature_length);
-    // tmp_message = "Calculated hash";
-    log_message_in_bootlog("Calculated hash");
-    log_bytes_in_bootlog(in_digest, in_digest_length);
-
     // Encode digest with algorithm information as per PKCS#1.5 
     // Same algorithm as make_secure_fw.py
     encSigLen = wc_EncodeSignature(encSig, in_digest, in_digest_length, SHA256h);
@@ -90,8 +79,7 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
         cout((uint8_t *)&encSig, (WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ));
     }
 
-    // tmp_message = "Calculated signature";
-    log_message_in_bootlog("Calculated signature");
+    log_message_in_bootlog("   Calculated firmware signature");
     log_bytes_in_bootlog(encSig, encSigLen);
 
     for (const auto &public_key : public_keys.public_key) {
@@ -135,12 +123,12 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
                 break;
             }
 
-            log_message_in_bootlog("Decoded signature");
+            log_message_in_bootlog("   Decoded signature");
             log_bytes_in_bootlog(decSig, decSigLen);
 
             // Compare both signatures
             if (XMEMCMP(encSig, decSig, encSigLen) == 0) {
-                log_message_in_bootlog("Signatures check:  OK");
+                log_message_in_bootlog("** Signatures check:  OK");
 
                 if (in_debug) {
                     xx = 99;
@@ -163,7 +151,7 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
     }
 
     if (ret != 0) {
-        log_message_in_bootlog("Signatures check:   FAILED");
+        log_message_in_bootlog("** Signatures check:   FAILED");
     }
 
     // Free the data structures
@@ -417,6 +405,9 @@ uint32_t verify_checksum_firmware(bool in_debug)
         return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND));
     }
 
+    log_message_in_bootlog("   Stored firmware checksum: ");
+    log_bytes_in_bootlog(firmware_checksum, WC_SHA256_DIGEST_SIZE);
+
     const uint8_t some_buffer[WC_SHA256_DIGEST_SIZE] {};
     if (memcmp(firmware_checksum, some_buffer, WC_SHA256_DIGEST_SIZE) == 0) {
         return static_cast<uint32_t>(check_fw_result_t::CHECK_FW_OK);
@@ -438,13 +429,16 @@ uint32_t verify_checksum_firmware(bool in_debug)
         cout((uint8_t *)firmware_checksum, WC_SHA256_DIGEST_SIZE);
     }
 
+    log_message_in_bootlog("   Calculated firmware checksum: ");
+    log_bytes_in_bootlog(calculated_hash, WC_SHA256_DIGEST_SIZE);
+
     // Compare checksums
     if (memcmp(firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
-        log_message_in_bootlog("Verification:   FAILED");
+        log_message_in_bootlog("** Verification:   FAILED");
         return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_BAD_CHECKSUM));
     }
 
-    log_message_in_bootlog("Verification:   OK");
+    log_message_in_bootlog("** Verification:   OK");
     return static_cast<uint32_t>(check_fw_result_t::CHECK_FW_OK);
 }
 
@@ -465,6 +459,9 @@ uint32_t verify_checksum_parameters(bool in_debug)
     if (parameters_checksum == nullptr) {
         return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND));
     }
+
+    log_message_in_bootlog("   Stored parameters checksum: ");
+    log_bytes_in_bootlog(parameters_checksum, WC_SHA256_DIGEST_SIZE);
 
     const uint8_t some_buffer[WC_SHA256_DIGEST_SIZE] {};
     if (memcmp(parameters_checksum, some_buffer, WC_SHA256_DIGEST_SIZE) == 0) {
@@ -500,14 +497,17 @@ uint32_t verify_checksum_parameters(bool in_debug)
         cout((uint8_t *)parameters_checksum, WC_SHA256_DIGEST_SIZE);
     }
 
+    log_message_in_bootlog("   Calculated parameters checksum: ");
+    log_bytes_in_bootlog(calculated_hash, WC_SHA256_DIGEST_SIZE);
+
     // Compare checksums
     if (memcmp(parameters_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
-        log_message_in_bootlog("Verification:   FAILED");
+        log_message_in_bootlog("** Verification:   FAILED");
 
         return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_BAD_CHECKSUM));
     }
 
-    log_message_in_bootlog("Verification:   OK");
+    log_message_in_bootlog("** Verification:   OK");
     return static_cast<uint32_t>(check_fw_result_t::CHECK_FW_OK);
 }
 

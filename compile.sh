@@ -30,7 +30,7 @@ if [ $? -ne 0 ]; then
    exit -1
 fi
 
-# Add the default parameters checksum, if any
+# Add the default parameters checksum, if any                        
 if [ -f build/${BOARD_NAME}/processed_defaults.parm ]; then
     Tools/scripts/generate_checksum.py build/${BOARD_NAME}/processed_defaults.parm
 fi
@@ -44,6 +44,10 @@ if [ $? -ne 0 ]; then
 fi
 
 # Command for uploading the new Firmware
+echo "Tools/scripts/uploader.py --port /dev/ttyACM0 build/${BOARD_NAME}/bin/arducopter.apj "
+
+echo "OR"
+
 echo "Tools/scripts/uploader.py --port /dev/ttyACM0 build/${BOARD_NAME}/bin/arducopter.apj build/${BOARD_NAME}/bin/arducopter_apj.sign  build/${BOARD_NAME}/bin/arducopter_apj.chksum   params_checksum.bin"
 
 echo "OR"

@@ -73,15 +73,15 @@ int main(void)
     log_message_in_bootlog("*** Ardupilot bootloader - by ajfg ***");
 
 #ifdef AP_BOOTLOADER_CUSTOM_HERE4
-    log_message_in_bootlog(" Custom startup");
+    log_message_in_bootlog("Custom startup");
     custom_startup();
 #endif
 
-    log_message_in_bootlog(" Init flash");
+    log_message_in_bootlog("Init flash");
     flash_init();
 
 #ifdef STM32H7
-    log_message_in_bootlog(" Check ECC errors");
+    log_message_in_bootlog("Check ECC errors");
     check_ecc_errors();
 #endif
     
@@ -103,18 +103,18 @@ int main(void)
 #endif
 
 #if HAL_FLASH_PROTECTION
-    log_message_in_bootlog(" Flash unprotected");
+    log_message_in_bootlog("Flash unprotected");
     stm32_flash_unprotect_flash();
 #endif
 
 #if AP_BOOTLOADER_NETWORK_ENABLED
-    log_message_in_bootlog(" Save IP");
+    log_message_in_bootlog("Save IP");
     network.save_comms_ip();
 #endif
 
 // ajfg
 #if  AP_CHECK_FIRMWARE_ENABLED
-    log_message_in_bootlog(" ** Verifying Checksums");
+    log_message_in_bootlog("** Verifying Checksums");
 
     // Verify the checksum (SHA256) of the firmware code and
     // the default parameters
@@ -128,7 +128,7 @@ int main(void)
 #endif
 
 #if AP_FASTBOOT_ENABLED
-    log_message_in_bootlog(" Fast boot");
+    log_message_in_bootlog("Fast boot");
 
     enum rtc_boot_magic m = check_fast_reboot();
     bool was_watchdog = stm32_was_watchdog_reset();
@@ -154,7 +154,7 @@ int main(void)
     }
 
 #if AP_CHECK_FIRMWARE_ENABLED
-    log_message_in_bootlog(" ** Check firmware");
+    log_message_in_bootlog("** Check firmware");
 
     const auto ok = check_good_firmware();
     if (ok != check_fw_result_t::CHECK_FW_OK) {
@@ -180,7 +180,7 @@ int main(void)
         timeout = 0;
     }
 #elif AP_CHECK_FIRMWARE_ENABLED
-    log_message_in_bootlog(" ** Check Firmware (II)");
+    log_message_in_bootlog("** Check Firmware (II)");
     const auto ok = check_good_firmware();
     if (ok != check_fw_result_t::CHECK_FW_OK) {
         // bad firmware, don't try and boot
@@ -213,7 +213,7 @@ int main(void)
 #endif
 
 #if EXT_FLASH_SIZE_MB
-    log_message_in_bootlog(" Ext flash");
+    log_message_in_bootlog("Ext flash");
     while (!ext_flash.init()) {
         // keep trying until we get it working
         // there's no future without it
@@ -221,42 +221,42 @@ int main(void)
     }
 #endif
 
-    log_message_in_bootlog(" Try to boot");
+    log_message_in_bootlog("Try to boot");
     if (try_boot) {
         jump_to_app();
     }
 
 #if defined(BOOTLOADER_DEV_LIST)
-    log_message_in_bootlog(" Init UARTS");
+    log_message_in_bootlog("Init UARTS");
 
     init_uarts();
 #endif
 #if HAL_USE_CAN == TRUE || HAL_NUM_CAN_IFACES
-    log_message_in_bootlog(" CAN start");
+    log_message_in_bootlog("CAN start");
     can_start();
 #endif
 
 #if AP_BOOTLOADER_NETWORK_ENABLED
-    log_message_in_bootlog(" Init network");
+    log_message_in_bootlog("Init network");
     network.init();
 #endif
 
 #if AP_BOOTLOADER_FLASH_FROM_SD_ENABLED
-    log_message_in_bootlog(" Flash from SD");
+    log_message_in_bootlog("Flash from SD");
     if (flash_from_sd()) {
         jump_to_app();
     }
 #endif
 
 #if defined(BOOTLOADER_DEV_LIST)
-    log_message_in_bootlog(" Bootloader"); 
+    log_message_in_bootlog("Bootloader"); 
 
     while (true) {
         bootloader(timeout);
         jump_to_app();
     }
 #else
-    log_message_in_bootlog(" CAN Update & Jump to APP");
+    log_message_in_bootlog("CAN Update & Jump to APP");
 
     // CAN and network only
     while (true) {
