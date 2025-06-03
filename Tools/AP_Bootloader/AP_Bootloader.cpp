@@ -68,8 +68,9 @@ static BL_Network network;
 
 int main(void)
 {
+    log_message_in_bootlog(" ");
     log_message_in_bootlog("=================================================");
-    log_message_in_bootlog(" ** Ardupilot bootloader - by ajfg **");
+    log_message_in_bootlog("*** Ardupilot bootloader - by ajfg ***");
 
 #ifdef AP_BOOTLOADER_CUSTOM_HERE4
     log_message_in_bootlog(" Custom startup");

@@ -449,10 +449,11 @@ bool log_message_in_bootlog(const char *message, const uint16_t message_len)
 
     char time_buffer[32] = {};
     
-    convert_hex_to_string(reinterpret_cast<uint8_t *>(&t0), sizeof(t0), time_buffer, false);
+    //convert_hex_to_string(reinterpret_cast<uint8_t *>(&t0), sizeof(t0), time_buffer, false);
+    itoa(t0, time_buffer, 10);
 
-    res = f_write(&file, time_buffer, sizeof(time_buffer), &bytes_written);
-    if (res != FR_OK || bytes_written != sizeof(time_buffer)) {
+    res = f_write(&file, time_buffer, strlen(time_buffer), &bytes_written);
+    if (res != FR_OK || bytes_written != strlen(time_buffer)) {
         // Writing failed
         f_close(&file);
         sdcard_stop(); // Stop SD card before returning
@@ -522,7 +523,7 @@ void convert_hex_to_string(const uint8_t *input_hex, const uint16_t input_len, c
 
 void log_bytes_in_bootlog(const uint8_t *input_hex, const uint16_t input_len)
 {
-    uint32_t string_len = (input_len * 2 + 1);
+    uint32_t string_len = (input_len * 3 + 1);
 
     // Limitation; 4 KB
     assert(string_len < 4096);
