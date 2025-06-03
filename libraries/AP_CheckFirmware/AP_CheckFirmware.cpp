@@ -140,6 +140,8 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
 
             // Compare both signatures
             if (XMEMCMP(encSig, decSig, encSigLen) == 0) {
+                log_message_in_bootlog("Signatures check:  OK");
+
                 if (in_debug) {
                     xx = 99;
                     cout((uint8_t *)&xx, 4);
@@ -158,6 +160,10 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
             wc_FreeRsaKey(pRsaKey);
             pRsaKey = nullptr;
         }
+    }
+
+    if (ret != 0) {
+        log_message_in_bootlog("Signatures check:   FAILED");
     }
 
     // Free the data structures
@@ -397,6 +403,8 @@ uint32_t verify_checksums(void)
 
 uint32_t verify_checksum_firmware(bool in_debug)
 {
+    log_message_in_bootlog("Verify checksum of the firmware");
+
     // Get the firmware checksum  
     uint8_t *firmware_checksum = find_firmware();
 
@@ -432,14 +440,18 @@ uint32_t verify_checksum_firmware(bool in_debug)
 
     // Compare checksums
     if (memcmp(firmware_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
+        log_message_in_bootlog("Verification:   FAILED");
         return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_BAD_CHECKSUM));
     }
 
+    log_message_in_bootlog("Verification:   OK");
     return static_cast<uint32_t>(check_fw_result_t::CHECK_FW_OK);
 }
 
 uint32_t verify_checksum_parameters(bool in_debug)
 {
+    log_message_in_bootlog("Verify checksum of Persistent Parameters");
+
     // Search for the address of the parameters checksum
     uint8_t *parameters_checksum = find_parameters_checksum();
     
@@ -490,9 +502,12 @@ uint32_t verify_checksum_parameters(bool in_debug)
 
     // Compare checksums
     if (memcmp(parameters_checksum, calculated_hash, WC_SHA256_DIGEST_SIZE) != 0) {
+        log_message_in_bootlog("Verification:   FAILED");
+
         return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_BAD_CHECKSUM));
     }
 
+    log_message_in_bootlog("Verification:   OK");
     return static_cast<uint32_t>(check_fw_result_t::CHECK_FW_OK);
 }
 
