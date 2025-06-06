@@ -374,7 +374,7 @@ Util::FlashBootloader Util::flash_bootloader()
                 uptodate = false;
                 Debug("** Update Default paraemters");
             } else {
-                Debug("** No change(s). Nothing to be updated");
+                Debug("** No Default parameters change(s). Nothing to be updated");
             }
         }
     } else {
@@ -743,7 +743,7 @@ void Util::apply_persistent_params(void) const
                 /*
                   we now have a special case for INS_ACC*_ID. To
                   support factory accelerometer calibration we need to
-                  do a save() on the ID parameters if they are not
+                  do a save() on the ID parameters if they are not                                          
                   already in storage. This is needed as
                   AP_InertialSensor determines if a calibration has
                   been done by whether the IDs are configured in

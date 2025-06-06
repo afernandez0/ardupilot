@@ -508,6 +508,7 @@ bootloader(unsigned timeout)
     static bool done_timer_init;
     unsigned original_timeout = timeout;
 
+#ifdef UPLOAD_DEBUG   
 #if AP_SIGNED_FIRMWARE
     // Calculate checksum sha256 of the firmware
     uint8_t calculated_hash[WC_SHA256_DIGEST_SIZE];
@@ -523,6 +524,7 @@ bootloader(unsigned timeout)
     memset(received_signature, 0, SIGNATURE_LENGTH);
 
 #endif  // AP_SIGNED_FIRMWARE
+#endif  // UPLOAD_DEBUG    
 
     memset(first_words, 0xFF, sizeof(first_words));
 
@@ -1258,6 +1260,7 @@ bootloader(unsigned timeout)
         }
 
 
+#ifdef UPLOAD_DEBUG
 #if AP_SIGNED_FIRMWARE
         // ajfg. V6
         // Verify firmware signature
@@ -1651,6 +1654,7 @@ bootloader(unsigned timeout)
         break;
 
 #endif //# AP_SIGNED_FIRMWARE
+#endif // UPLOAD_DEBUG
 
         default:
             continue;

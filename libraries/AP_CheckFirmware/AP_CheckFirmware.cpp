@@ -73,11 +73,13 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
     // Same algorithm as make_secure_fw.py
     encSigLen = wc_EncodeSignature(encSig, in_digest, in_digest_length, SHA256h);
 
+#ifdef UPLOAD_DEBUG
     uint32_t xx = encSigLen;
     if (in_debug) {
         cout((uint8_t *)&xx, 4);
         cout((uint8_t *)&encSig, (WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ));
     }
+#endif  //UPLOAD_DEBUG
 
     log_message_in_bootlog("   Calculated firmware signature");
     log_bytes_in_bootlog(encSig, encSigLen);
@@ -91,30 +93,36 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
             break;
         }
         pRsaKey = &rsaKey;
+#ifdef UPLOAD_DEBUG        
         if (in_debug) {
             xx = ret;
             cout((uint8_t *)&xx, 4);
         }
-        
+#endif  //UPLOAD_DEBUG
+
         // Read the next public key
         idx = 0;
         ret = wc_RsaPublicKeyDecode(public_key.key, &idx, &rsaKey, sizeof(public_key.key));
         if (ret != 0) {
             break;
         }
+#ifdef UPLOAD_DEBUG        
         if (in_debug) {
             xx = ret;
             cout((uint8_t *)&xx, 4);
         }
+#endif  //UPLOAD_DEBUG
         
         // Verify the signature by decrypting the value
         memset(decSig, 0, sizeof(decSig));
         ret = wc_RsaSSL_Verify(in_signature, in_signature_length, decSig, decSigLen, &rsaKey);
+#ifdef UPLOAD_DEBUG        
         if (in_debug) {
             xx = ret;
             cout((uint8_t *)&xx, 4);
             cout((uint8_t *)&decSig, (WC_SHA256_DIGEST_SIZE + MAX_ENC_ALG_SZ));
         }
+#endif  //UPLOAD_DEBUG
 
         // It returns the length of the message or error
         if (ret >= 0) {
@@ -130,10 +138,13 @@ int int_check_signature(unsigned char *in_signature, int in_signature_length,
             if (XMEMCMP(encSig, decSig, encSigLen) == 0) {
                 log_message_in_bootlog("** Signatures check:  OK");
 
+#ifdef UPLOAD_DEBUG
                 if (in_debug) {
                     xx = 99;
                     cout((uint8_t *)&xx, 4);
                 }
+#endif  //UPLOAD_DEBUG
+    
                 // Signature ok
                 ret = 0;
                 break;
@@ -396,10 +407,12 @@ uint32_t verify_checksum_firmware(bool in_debug)
     // Get the firmware checksum  
     uint8_t *firmware_checksum = find_firmware();
 
+#ifdef UPLOAD_DEBUG
     if (in_debug) {
         uint32_t xx = uint32_t(firmware_checksum);
         cout((uint8_t *)&xx, 4);
     }
+#endif  //UPLOAD_DEBUG    
 
     if (firmware_checksum == nullptr) {
         return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND));
@@ -424,10 +437,12 @@ uint32_t verify_checksum_firmware(bool in_debug)
 
     calculate_hash(firmware_data, calculated_hash);
 
+#ifdef UPLOAD_DEBUG    
     if (in_debug) {
         cout((uint8_t *)calculated_hash, WC_SHA256_DIGEST_SIZE);
         cout((uint8_t *)firmware_checksum, WC_SHA256_DIGEST_SIZE);
     }
+#endif  //UPLOAD_DEBUG
 
     log_message_in_bootlog("   Calculated firmware checksum: ");
     log_bytes_in_bootlog(calculated_hash, WC_SHA256_DIGEST_SIZE);
@@ -449,12 +464,14 @@ uint32_t verify_checksum_parameters(bool in_debug)
     // Search for the address of the parameters checksum
     uint8_t *parameters_checksum = find_parameters_checksum();
     
+#ifdef UPLOAD_DEBUG    
     uint32_t xx = 0;
     
     if (in_debug) {
         xx = uint32_t(parameters_checksum);
         cout((uint8_t *)&xx, 4);
     }
+#endif  //UPLOAD_DEBUG
 
     if (parameters_checksum == nullptr) {
         return (static_cast<uint32_t>(check_fw_result_t::FAIL_REASON_CHECKSUM_NOT_FOUND));
@@ -474,6 +491,7 @@ uint32_t verify_checksum_parameters(bool in_debug)
 
     parameters_address = find_parameters(parameters_size);
 
+#ifdef UPLOAD_DEBUG
     if (in_debug) {
         xx = parameters_size;
         cout((uint8_t *)&xx, 4);
@@ -481,6 +499,7 @@ uint32_t verify_checksum_parameters(bool in_debug)
         xx = uint32_t(parameters_address);
         cout((uint8_t *)&xx, 4);
     }
+#endif  //UPLOAD_DEBUG
 
     if (parameters_address == nullptr) {
         // There are no parameters. So no checksum to be verified
@@ -492,10 +511,12 @@ uint32_t verify_checksum_parameters(bool in_debug)
 
     calculate_hash(parameters_address, parameters_size, calculated_hash);
 
+#ifdef UPLOAD_DEBUG    
     if (in_debug) {
         cout((uint8_t *)calculated_hash, WC_SHA256_DIGEST_SIZE);
         cout((uint8_t *)parameters_checksum, WC_SHA256_DIGEST_SIZE);
     }
+#endif  //UPLOAD_DEBUG
 
     log_message_in_bootlog("   Calculated parameters checksum: ");
     log_bytes_in_bootlog(calculated_hash, WC_SHA256_DIGEST_SIZE);
